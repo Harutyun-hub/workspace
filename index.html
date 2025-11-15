@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyChatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button class="menu-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="logo">MyChatbot</div>
+            </div>
+            
+            <div class="sidebar-actions">
+                <button class="new-chat-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                    </svg>
+                    New chat
+                </button>
+            </div>
+            
+            <div class="recent-chats">
+                <div class="recent-header">Recent</div>
+                <div class="chat-history" id="chatHistory"></div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="settings-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.488.488 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+                    </svg>
+                    Settings & help
+                </button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <header class="simple-header">
+                <button class="profile-btn" id="profileBtn">
+                    <img class="avatar" id="userAvatar" src="" alt="User" style="display: none;">
+                    <div class="avatar" id="avatarPlaceholder"></div>
+                </button>
+                <div class="profile-dropdown" id="profileDropdown" style="display: none;">
+                    <div class="profile-info">
+                        <img class="profile-avatar" id="profileAvatar" src="" alt="User">
+                        <div class="profile-details">
+                            <div class="profile-name" id="profileName"></div>
+                            <div class="profile-email" id="profileEmail"></div>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" id="logoutBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" fill="currentColor"/>
+                        </svg>
+                        Sign out
+                    </button>
+                </div>
+            </header>
+            
+            <div class="chat-container" id="chatContainer">
+                <div class="message-list" id="messages"></div>
+            </div>
+            
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <button class="attach-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <input type="text" id="messageInput" placeholder="Ask MyChatbot" />
+                    <button class="voice-input-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button class="send-btn" id="sendBtn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="utils.js"></script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="database.js"></script>
+    <script src="script.js"></script>
+    <script>
+        (async function() {
+            const overlay = showLoadingOverlay('Loading...');
+            
+            try {
+                const session = await requireAuth();
+                if (session) {
+                    const user = session.user;
+                    const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+                    
+                    if (avatar) {
+                        document.getElementById('userAvatar').src = avatar;
+                        document.getElementById('userAvatar').style.display = 'block';
+                        document.getElementById('avatarPlaceholder').style.display = 'none';
+                        document.getElementById('profileAvatar').src = avatar;
+                    }
+                    
+                    document.getElementById('profileName').textContent = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
+                    document.getElementById('profileEmail').textContent = user.email;
+                    
+                    console.log('✓ Auth complete, initializing chat...');
+                    await initializeChat();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                showToast('Authentication check failed. Please try logging in again.', 'error');
+            } finally {
+                hideLoadingOverlay();
+            }
+        })();
+        
+        // Named event handlers to prevent duplicates
+        function handleProfileToggle() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function handleClickOutside(e) {
+            const profileBtn = document.getElementById('profileBtn');
+            const dropdown = document.getElementById('profileDropdown');
+            if (!profileBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        async function handleLogout(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                console.log('Logout button clicked');
+                await signOut();
+            } catch (error) {
+                console.error('Logout failed:', error);
+                showToast('Logout failed. Please try again.', 'error');
+            }
+        }
+        
+        // Attach event listeners with removal protection
+        const profileBtn = document.getElementById('profileBtn');
+        profileBtn.removeEventListener('click', handleProfileToggle);
+        profileBtn.addEventListener('click', handleProfileToggle);
+        console.log('✓ Profile button listener attached');
+        
+        document.removeEventListener('click', handleClickOutside);
+        document.addEventListener('click', handleClickOutside);
+        console.log('✓ Click outside listener attached');
+        
+        const logoutBtn = document.getElementById('logoutBtn');
+        logoutBtn.removeEventListener('click', handleLogout);
+        logoutBtn.addEventListener('click', handleLogout);
+        console.log('✓ Logout button listener attached');
+    </script>
+</body>
+</html>
