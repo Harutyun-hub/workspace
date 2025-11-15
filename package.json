@@ -1,0 +1,11 @@
+{
+  "name": "replit-github-push",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "push": "node push-to-github.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.0"
+  }
+}
