@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nundu AI</title>
+    <link rel="icon" type="image/png" href="attached_assets/nundu_ai_logo_1765627158270.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="animated-bg">
+            <div class="bg-gradient"></div>
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+            <div class="blob blob-3"></div>
+        </div>
+
+        <div class="main-layout">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-brand">
+                        <button class="menu-btn" id="menuBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <span class="brand-text">Nundu AI</span>
+                    </div>
+                    <button class="collapse-btn" id="collapseBtn">
+                        <svg class="chevron-left" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/>
+                        </svg>
+                        <svg class="chevron-right" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="sidebar-scroll-container">
+                    <div class="sidebar-actions">
+                        <button class="new-chat-btn" id="newChatBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                            </svg>
+                            <span class="btn-text">New chat</span>
+                        </button>
+                    </div>
+                    
+                    <nav class="sidebar-nav">
+                        <a href="/index.html" class="nav-item active" data-view="chat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z" fill="currentColor"/>
+                            </svg>
+                            <span class="nav-text">Chat</span>
+                        </a>
+                        <a href="/dashboard.html" class="nav-item" data-view="dashboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" fill="currentColor"/>
+                            </svg>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </nav>
+                    
+                    <div class="recent-chats">
+                        <div class="recent-header">
+                            <span class="recent-label">RECENT</span>
+                        </div>
+                        <div class="chat-history" id="chatHistory"></div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-footer">
+                    <button class="settings-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.488.488 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+                        </svg>
+                        <span class="btn-text">Settings & help</span>
+                    </button>
+                </div>
+            </aside>
+            
+            <main class="main-content">
+                <header class="chat-header">
+                    <div class="header-left">
+                        <div class="ai-avatar">
+                            <img src="attached_assets/nundu_ai_logo_1765627158270.png" alt="Nundu AI" class="ai-avatar-logo">
+                        </div>
+                        <div class="header-info">
+                            <h1 class="header-title">Nundu AI</h1>
+                            <span class="status-indicator">
+                                <span class="status-dot"></span>
+                                Online
+                            </span>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <button class="profile-btn" id="profileBtn">
+                            <img class="avatar-img" id="userAvatar" src="" alt="User" style="display: none;">
+                            <div class="avatar-placeholder" id="avatarPlaceholder">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                                </svg>
+                            </div>
+                        </button>
+                        <div class="profile-dropdown" id="profileDropdown" style="display: none;">
+                            <div class="profile-info">
+                                <img class="profile-avatar" id="profileAvatar" src="" alt="User">
+                                <div class="profile-details">
+                                    <div class="profile-name" id="profileName"></div>
+                                    <div class="profile-email" id="profileEmail"></div>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item" id="logoutBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" fill="currentColor"/>
+                                </svg>
+                                Sign out
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                
+                <div class="chat-container" id="chatContainer">
+                    <div class="message-list" id="messages"></div>
+                </div>
+                
+                <div class="input-area">
+                    <div class="input-wrapper">
+                        <button class="attach-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <input type="text" id="messageInput" placeholder="Ask Nundu AI..." />
+                        <button class="send-btn" id="sendBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <script src="utils.js"></script>
+    <script src="message-renderer.js"></script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="database.js"></script>
+    <script src="script.js"></script>
+    <script>
+        (async function() {
+            const overlay = showLoadingOverlay('Loading...');
+            
+            try {
+                const session = await requireAuth();
+                if (session) {
+                    const user = session.user;
+                    const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+                    
+                    if (avatar) {
+                        document.getElementById('userAvatar').src = avatar;
+                        document.getElementById('userAvatar').style.display = 'block';
+                        document.getElementById('avatarPlaceholder').style.display = 'none';
+                        document.getElementById('profileAvatar').src = avatar;
+                    }
+                    
+                    document.getElementById('profileName').textContent = user.user_metadata?.full_name || user.user_metadata?.name || 'User';
+                    document.getElementById('profileEmail').textContent = user.email;
+                    
+                    console.log('✓ Auth complete, initializing chat...');
+                    await initializeChat();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                showToast('Authentication check failed. Please try logging in again.', 'error');
+            } finally {
+                hideLoadingOverlay();
+            }
+        })();
+        
+        function handleProfileToggle() {
+            const dropdown = document.getElementById('profileDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function handleClickOutside(e) {
+            const profileBtn = document.getElementById('profileBtn');
+            const dropdown = document.getElementById('profileDropdown');
+            if (!profileBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        async function handleLogout(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                console.log('Logout button clicked');
+                await signOut();
+            } catch (error) {
+                console.error('Logout failed:', error);
+                showToast('Logout failed. Please try again.', 'error');
+            }
+        }
+        
+        const profileBtn = document.getElementById('profileBtn');
+        profileBtn.removeEventListener('click', handleProfileToggle);
+        profileBtn.addEventListener('click', handleProfileToggle);
+        console.log('✓ Profile button listener attached');
+        
+        document.removeEventListener('click', handleClickOutside);
+        document.addEventListener('click', handleClickOutside);
+        console.log('✓ Click outside listener attached');
+        
+        const logoutBtn = document.getElementById('logoutBtn');
+        logoutBtn.removeEventListener('click', handleLogout);
+        logoutBtn.addEventListener('click', handleLogout);
+        console.log('✓ Logout button listener attached');
+
+        const collapseBtn = document.getElementById('collapseBtn');
+        const sidebar = document.getElementById('sidebar');
+        
+        collapseBtn.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+        });
+    </script>
+</body>
+</html>

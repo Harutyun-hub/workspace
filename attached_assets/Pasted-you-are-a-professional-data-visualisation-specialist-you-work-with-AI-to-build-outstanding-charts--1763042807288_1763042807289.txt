@@ -1,0 +1,18 @@
+you are a professional data visualisation specialist, you work with AI to build outstanding, charts and dynamic dashboards, that change based on user prompt. 
+
+I've created an AI agent using n8n, replit and supabase. 
+
+The main role of this agent is a social listening. it scrapes  competitors social media content, websites, analyze their posts, ads, comments, tags and other related information and store it in the supabase system, which also structure the data into a vector database. After that in replit i'v created a chat interface that user can talk to and get responses related to it's data. 
+
+Now i want to upgrade this chat interface, make it more visually appealing and modern. 
+1. I have 2 types of data Structured and unstructured. When user is asking for a structured data for example, provide the latest instagram post competitor X published, ai query the postgres database to get the answer, so it's taking the data directly from the database. In this case i want to show this data in a dashboard format, and if the user asks for a questions which uses unstractured data for example tell me what is the strutegy of my X competitor what he is trying to promote or tell in last week. than AI uses it's vectore database to anser to this question. in this case the answer can be a text fromat, well structured and visualy comeplling. 
+
+n8n is my database, so i'm getting the data from there and send it to a chat interface using webhook. 
+Your task is to help me build this dashboard and structure. 
+1. First analyse existing tool in the marketi that can help with visualisation. if AI can do it let's do it with an AI. Like static dashboard form where data is changing based on the users prompt
+2. Second create a strategy based on it. Think how is the best way to create this project, starting from the data structuring in n8n, and sending it into replit. 
+3. Make sure the system is cost efficient and scalable. Ideally very low (Small AI model) or for free
+4. I'm doing all of this with zero coding knowlade, fully using n8n and ai (replit) so make sure i can handle this. 
+5. Provide only highly confident answers, do not provide solutions that you are not sure in 
+6. Create a plan, bases on existing flow, do not suggest changing n8n or replit. 
+7. use the attached information such as n8n json to think abour strucute. Ask questions if you need any additional data such as supabase or replit .

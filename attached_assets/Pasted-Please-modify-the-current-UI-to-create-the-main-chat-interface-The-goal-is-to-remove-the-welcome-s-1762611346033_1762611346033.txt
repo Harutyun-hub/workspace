@@ -1,0 +1,47 @@
+Please modify the current UI to create the main chat interface. The goal is to remove the 'welcome screen' elements (like 'Hello, Harutyun' and the suggestion buttons) and build the functional chat shell.
+
+Here are the specific changes:
+
+Main Layout: Keep the two-column layout (left sidebar + main chat container).
+
+Left Sidebar (Keep & Modify):
+
+Keep the "New chat" button at the top.
+
+Keep the "Recent" section. This will be our chat history list.
+
+Keep the "Settings & help" item at the bottom.
+
+Change the "Gemini" text at the very top of the sidebar to a simple logo placeholder (e.g., text that just says "MyChatbot").
+
+Main Chat Container (Remove & Modify):
+
+Remove the main content header (the one with the search icon, "Invite a friend," "PRO").
+
+Remove the "Hello, Harutyun" welcome text.
+
+Remove the "Tools / 2.5 Pro" selector.
+
+Remove all the suggestion buttons ("Create Image," "Write," "Build," etc.).
+
+Main Chat Container (Add):
+
+Add a new, simple header at the top of this main section that contains a placeholder profile icon aligned to the far right.
+
+In the middle, where all the welcome content was, create an empty container with a class like message-list. This is where the chat bubbles will be added.
+
+Keep the fixed chat input bar ("Ask Gemini...") at the very bottom of the page. This is essential.
+
+Visual & Aesthetic Refinements:
+
+Theme: Ensure the design is sleek, modern, and classy, inspired by Google's Gemini.
+
+Colors: Use a clean, off-white or very light gray background (#f0f4f9). Use a professional blue as the primary accent color. All text should be a dark gray (#1f1f1f), not pure black.
+
+Spacing: Be generous with whitespace and padding. The interface should feel uncluttered and breathable, not crowded.
+
+Borders & Shadows: Use subtle, light gray borders (#e0e0e0) to separate sections, not heavy, dark lines. Use very subtle box shadows for a modern, layered feel (e.g., on the input bar).
+
+Typography: Use a modern, sans-serif font (like Google Sans, Roboto, or system fonts) for all text. Ensure headings and body text are clean and easy to read.
+
+Buttons/Icons: All buttons and icons should be simple and minimalist. Use border-radius to give all elements (buttons, inputs) slightly rounded corners for a softer, more modern look."

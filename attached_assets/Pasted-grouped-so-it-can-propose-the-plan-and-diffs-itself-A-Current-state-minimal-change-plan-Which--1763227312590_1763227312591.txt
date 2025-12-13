@@ -1,0 +1,122 @@
+grouped so it can propose the plan and diffs itself.
+A) Current state & minimal-change plan
+
+
+Which exact files/functions currently: (a) send the webhook request, (b) render assistant/system bubbles? Give file paths and function names.
+
+
+What is the smallest possible change to support JSON envelopes without altering my chat layout/CSS? Propose two alternatives and pick one with reasoning.
+
+
+Can you show a one-paragraph plan that adds at most one new JS file and two <script> lines in index.html?
+
+
+B) Data contract & normalization
+
+
+Do you agree to this contract?
+answer_type ∈ {"text","chart","table","media_gallery"}, title?, chart_type?, data[], note?, text?
+If not, what exact deltas do you need and why?
+
+
+Where in my current code is the response parsed—res.text() or res.json()? Should we switch to text() then conditional JSON.parse? Justify.
+
+
+If the backend returns rows, items, or chart_payloads.data, how will you normalize into payload.data? Show the exact normalization snippet (≤10 lines).
+
+
+If data arrives as a stringified array, how will you detect and parse it safely? What’s your fallback if parsing fails?
+
+
+C) Renderer routing (no UI refactor)
+
+
+Where will you insert the single call that routes by answer_type? Show the exact code line and file path.
+
+
+How will you ensure plain text replies remain visually identical? What guard checks will enforce this?
+
+
+Will you use textContent everywhere (no innerHTML)? Point to any place it might be violated.
+
+
+D) Chart/table/media specifics
+
+
+For charts, what is the exact {labels,data} mapping from [{name,value}]? Show a 6-line Chart.js init using an existing bubble container.
+
+
+How will you prevent double charts in the same bubble? Show the one-line destroy pattern you’ll use.
+
+
+For tables, how will you derive columns when row shapes differ or are empty? What is the fallback message?
+
+
+For media, which keys (url|src, alt|name) will you accept? How will you handle invalid/empty URLs?
+
+
+E) Network, errors, and timeouts
+
+
+Will you add an AbortController timeout? What value and why? Show the 6-line snippet.
+
+
+When res.ok === false, what exact text bubble content will be shown? Provide the string template.
+
+
+How will you surface low-level errors (CORS/JSON parse) without breaking the chat flow?
+
+
+F) Testing & observability
+
+
+How will I toggle a debug view (e.g., #debug) that appends a <pre> of the normalized payload under the bubble? Show the 5-line snippet.
+
+
+Provide two copy-paste payloads (one chart, one table) I can inject to verify rendering without backend changes.
+
+
+What are the manual acceptance steps (≤8 steps) to prove success end-to-end?
+
+
+G) Performance & security
+
+
+What’s the memory-leak risk with Chart.js per bubble? How exactly are you mitigating it?
+
+
+Confirm no global intervals/listeners are added. If any are necessary, where do they get cleaned up?
+
+
+List all places where untrusted strings are inserted into the DOM; confirm textContent is used.
+
+
+How will you validate/sanitize image URLs to avoid layout shifts or errors?
+
+
+H) Minimal diffs & rollback
+
+
+Show me the exact diff you plan to make in index.html (only the added lines).
+
+
+Show the exact diff in the function that appends system messages (only the added lines).
+
+
+Provide a one-step rollback: which file to delete and which two lines to remove from index.html to return to current behavior.
+
+
+I) Alternatives & trade-offs
+
+
+If you had to avoid Chart.js, what’s the lightest alternative and why/when would you pick it?
+
+
+If future payloads add answer_type: "map" or "metrics", how would your router extend without touching existing code? Outline the hook point.
+
+
+J) Final confirmation
+
+
+Before you start, restate in 3 bullets: (a) max files changed, (b) guarantees about UI not changing, (c) error-handling behavior for non-JSON responses.
+

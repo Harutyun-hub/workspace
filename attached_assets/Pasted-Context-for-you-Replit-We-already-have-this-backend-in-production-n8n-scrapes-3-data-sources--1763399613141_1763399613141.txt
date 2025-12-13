@@ -1,0 +1,83 @@
+Context for you (Replit):
+
+We already have this backend in production:
+
+n8n scrapes 3 data sources: Facebook ads, Google ads, Instagram posts.
+
+n8n calls a Supabase RPC:
+POST /rest/v1/rpc/upsert_snapshot_bundle
+
+Payload example:
+
+{
+  "p_handle": "totogaming.ro",
+  "p_snapshot_date": "...",
+  "p_bundle": {
+    "results": [...],  // Facebook ads
+    "ads": [...],      // Google ads
+    "posts": [...]     // Instagram posts
+  }
+}
+
+
+I do not want to change this n8n logic or payload format.
+
+On the Supabase side we’ve already implemented:
+
+A central companies table with:
+
+id UUID PRIMARY KEY
+
+company_key TEXT UNIQUE (canonical key, e.g. totogaming.ro)
+
+Each analytics table now has company_id UUID NOT NULL referencing companies.id:
+
+facebook_ads.company_id
+
+google_ads.company_id
+
+instagram_posts.company_id
+
+The function public.upsert_snapshot_bundle is already updated and working:
+
+It takes p_handle, lowercases it to company_key.
+
+Ensures a row exists in companies for that key.
+
+Fetches v_company_id from companies.
+
+Inserts/UPSERTs into facebook_ads, google_ads, instagram_posts and sets company_id = v_company_id.
+
+Existing uniqueness constraints like (handle, url) for FB/IG and (handle, url, snapshot_date) for Google are respected with ON CONFLICT ... DO UPDATE.
+
+So database + n8n are already correct. Don’t modify those.
+
+What I need from you in the Replit app:
+
+Assume company identity = companies.company_key = lower(p_handle).
+
+When you generate SQL for the frontend/API layer, always join via company_id / companies:
+
+Example pattern:
+
+SELECT fa.*
+FROM facebook_ads fa
+JOIN companies c ON c.id = fa.company_id
+WHERE c.company_key = 'totogaming.ro'
+ORDER BY fa.created_at DESC;
+
+
+For any future data sources (e.g. TikTok, YouTube) you can assume they will follow the same pattern:
+
+Table will have a company_id column referencing companies(id).
+
+The RPC will populate company_id in the same way.
+
+When you build dashboard queries, filters, and dropdowns:
+
+Use companies as the source of truth for available companies.
+
+Filter all charts/tables by company_id instead of guessing from handle, page_name, username, etc.
+
+Goal:
+Front-end and API code should treat companies + company_id as the canonical way to know which company each ad/post belongs to. n8n payload stays the same; only query patterns and UI logic in this Replit project should be updated accordingly.

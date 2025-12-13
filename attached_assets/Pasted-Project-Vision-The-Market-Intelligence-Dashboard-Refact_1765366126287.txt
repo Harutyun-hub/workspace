@@ -1,0 +1,46 @@
+Project Vision: The "Market Intelligence" Dashboard Refactor
+The Goal: I need to transform my existing application from a simple "Data Monitor" into a professional "Competitive Intelligence Suite."
+
+Currently, my dashboard displays raw data—lists of posts, ads, and engagement numbers. This is useful, but it forces the user to do the hard work of analyzing it. I want to shift the focus to comparative insights. The user should land on the dashboard and immediately understand not just what their competitors are doing, but who is winning and how they are doing it.
+
+The Experience I Want to Build:
+
+I want the dashboard to tell a story across four key dimensions:
+
+1. The "Battlefield" Overview (Market Share) Instead of just listing companies, I want a high-level command center.
+
+The Question it Answers: "Who is dominating the conversation right now?"
+
+The Visualization: A visual breakdown of "Share of Voice." If I select 5 competitors, I want to see a pie chart or distinct cards showing who has the most active ads, the highest volume of posts, and the massive share of engagement. It should be an instant "Health Check" of the market.
+
+2. The Pulse of Engagement (Trend Analysis) I want to move away from static tables and toward dynamic timelines.
+
+The Question it Answers: "Is my competitor going viral, or are they quiet?"
+
+The Visualization: A comparative timeline chart. I want to see the spikes in activity. If a competitor launched a huge campaign last Tuesday, I should see that spike on the graph. This allows me to correlate their activity with their results.
+
+3. The Creative Strategy (Visual Galleries) My users need to see the content, not just the text.
+
+The Question it Answers: "What creative angles are they using to convert customers?"
+
+The Visualization:
+
+Social Feed: A grid of the "Top Performing Posts" sorted by virality. Don't just show me the latest; show me the best.
+
+Ad Vault: A clean gallery of their active Facebook and Google ads. This should look like a professional mood board—images and creative assets front and center, so I can spot their visual strategy immediately.
+
+4. Website Espionage (Digital Footprint) I want to track their "home base," not just their social media.
+
+The Question it Answers: "Did they change their pricing or value proposition?"
+
+The Visualization: A visual history of their landing page. I want to see the latest screenshot of their homepage side-by-side with a log of their text changes (e.g., changing their headline from "Best Odds" to "Fastest Payouts").
+
+Summary of UX Requirements:
+
+Comparative by Design: The entire dashboard must handle "Client vs. Competitor" logic.
+
+Visual First: Less text, more images/charts. Raw JSON or messy links should be hidden behind clean UI cards.
+
+Insight Driven: Don't just show me the data; organize it so the outliers (viral posts, new ads) jump off the screen.
+
+My Request to You: Please analyze my current codebase and propose a refactoring plan to implement this "Intelligence Suite" structure. I want to keep my existing design language (colors/fonts) but completely restructure the layout to support these four pillars of intelligence.

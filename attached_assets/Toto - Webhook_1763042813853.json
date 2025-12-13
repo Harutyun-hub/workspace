@@ -1,0 +1,1199 @@
+{
+  "name": "Toto - Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "googleAdLibrary",
+        "domain": "={{ $('Workflow Configuration').first().json.competitorDomain }}",
+        "additionalFields": {},
+        "limit": 5,
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-scrape-creators.scrapeCreators",
+      "typeVersion": 1,
+      "position": [
+        -158144,
+        10176
+      ],
+      "id": "d8f19a3d-28c0-4699-9477-c62b2281da3a",
+      "name": "Google Ads",
+      "credentials": {
+        "scrapeCreatorsApi": {
+          "id": "q5HgqVXlZE4kH26Q",
+          "name": "Scrape Creators account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "facebookAdLibrary",
+        "operation": "getCompanyAds",
+        "pageId": "={{ $('Workflow Configuration').first().json.competitorPageId }}",
+        "additionalFields": {},
+        "limit": 5,
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-scrape-creators.scrapeCreators",
+      "typeVersion": 1,
+      "position": [
+        -158144,
+        9984
+      ],
+      "id": "e13cca86-8f66-4d61-b64e-6bcb3c3653d4",
+      "name": "Facebook ads",
+      "credentials": {
+        "scrapeCreatorsApi": {
+          "id": "q5HgqVXlZE4kH26Q",
+          "name": "Scrape Creators account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getInstagramUserPosts",
+        "handle": "={{ $('Workflow Configuration').first().json.competitorInstagram }}",
+        "limit": 5,
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-scrape-creators.scrapeCreators",
+      "typeVersion": 1,
+      "position": [
+        -158144,
+        10368
+      ],
+      "id": "b60372d5-1b54-49ef-8bbb-a6379fc0a315",
+      "name": "Get an instagram user s posts",
+      "credentials": {
+        "scrapeCreatorsApi": {
+          "id": "q5HgqVXlZE4kH26Q",
+          "name": "Scrape Creators account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "88d37a8a-36ff-435e-8242-2615fd1616cd",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -158592,
+        10176
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "competitorWebsite",
+              "value": "https://totogaming.am",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "competitorDomain",
+              "value": "totogaming.ro",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "competitorPageId",
+              "value": "121088127757993",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "competitorInstagram",
+              "value": "totogaming.ro",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "176407cc-e754-4aeb-9106-50347956700f",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -158368,
+        10176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 🧠 Data source\n",
+        "height": 672,
+        "width": 1600,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -158752,
+        9920
+      ],
+      "typeVersion": 1,
+      "id": "301d7fff-345c-44b3-b82c-c25a0e3cd81f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code Node Script\n * * This script filters incoming JSON data to extract only the specified fields.\n * * n8n Input: Assumes the input item (items[0].json) is the object:\n * { \"results\": [...] }\n * * n8n Output: Returns a new item with the filtered JSON structure:\n * { \"results\": [ ...filtered items... ] }\n */\n\n// --- 1. THE FILTERING FUNCTION ---\n/**\n * Filters the raw scrape data to include only the specified fields.\n * @param {object} dataObject - The original, unfiltered data object, e.g., { \"results\": [...] }.\n * @returns {object} - The new object containing only the filtered data, e.g., { \"results\": [...] }.\n */\nfunction filterScrapeData(dataObject) {\n    // Check if data is valid and has the expected structure\n    if (!dataObject || !Array.isArray(dataObject.results)) {\n        console.error(\"Invalid data structure. Expected an object with a 'results' array.\");\n        // Return an empty object structure to avoid validation errors\n        return { results: [] };\n    }\n\n    // Get the main results array from the input object\n    const originalResults = dataObject.results;\n\n    // Use .map() to transform each item in the 'results' array\n    const filteredResults = originalResults.map(item => {\n        \n        // Helper function to safely filter images\n        // Check if snapshot.images exists and is an array\n        const filteredImages = (item.snapshot && item.snapshot.images && Array.isArray(item.snapshot.images))\n            ? item.snapshot.images.map(img => ({\n                original_image_url: img.original_image_url\n            }))\n            : []; // Default to empty array if no images\n\n        // Helper function to safely filter videos\n        // Check if snapshot.videos exists and is an array\n        const filteredVideos = (item.snapshot && item.snapshot.videos && Array.isArray(item.snapshot.videos))\n            ? item.snapshot.videos.map(vid => ({\n                video_hd_url: vid.video_hd_url\n            }))\n            : []; // Default to empty array if no videos\n\n        // Get the entire body object, default to null if not present\n        const fullBodyObject = (item.snapshot && item.snapshot.body)\n            ? item.snapshot.body\n            : null;\n        \n        // Get other body-related fields from snapshot, defaulting to null\n        const ctaType = (item.snapshot && item.snapshot.cta_type) ? item.snapshot.cta_type : null;\n        const displayFormat = (item.snapshot && item.snapshot.display_format) ? item.snapshot.display_format : null;\n        const linkDescription = (item.snapshot && item.snapshot.link_description) ? item.snapshot.link_description : null;\n        const linkUrl = (item.snapshot && item.snapshot.link_url) ? item.snapshot.link_url : null;\n\n        // Get the page_profile_uri from snapshot, defaulting to null\n        const pageProfileUri = (item.snapshot && item.snapshot.page_profile_uri) ? item.snapshot.page_profile_uri : null;\n\n        // Construct the new, filtered object\n        return {\n            // --- Metadata fields ---\n            page_id: item.page_id,\n            page_name: item.page_name,\n            publisher_platform: item.publisher_platform,\n            start_date_string: item.start_date_string,\n            end_date_string: item.end_date_string,\n            page_profile_uri: pageProfileUri, // Pulled up from snapshot\n            url: item.url, // Added the 'url' field\n\n            // --- Nested snapshot data (Data output) ---\n            snapshot: {\n                // --- Data output fields from snapshot ---\n                body: fullBodyObject, // Get the entire 'body'object\n                images: filteredImages,\n                videos: filteredVideos,\n                \n                // --- Added fields based on user feedback ---\n                cta_type: ctaType,\n                display_format: displayFormat,\n                link_description: linkDescription,\n                link_url: linkUrl\n                \n                // Duplicated page_id and page_name removed from here\n            }\n        };\n    });\n\n    // Return the data as a single object\n    return {\n        results: filteredResults\n    };\n}\n\n// --- 2. n8n EXECUTION ---\n\n// Get the input data from the first item (assuming it's coming in as JSON)\n// 'items' is the n8n variable holding all input items.\n// We now assume originalScrapeData is an OBJECT: { \"results\": [...] }\nconst originalScrapeData = items[0].json;\n\n// Run the filtering function\nconst filteredData = filterScrapeData(originalScrapeData);\n\n// Return the filtered data as the output of this node\n// filteredData is now an OBJECT { results: [...] }, which satisfies n8n's validator.\nreturn [\n    {\n        json: filteredData\n    }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -157920,
+        9984
+      ],
+      "id": "9196d9e3-4d0c-4aa4-980e-288c67852211",
+      "name": "Facebook ads1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code Node Script - Ad Transparency Filter\n * * This script filters incoming JSON data from the Google Ad Transparency API.\n * * n8n Input: Assumes the input item (items[0].json) is an object\n *   with an \"ads\" array: { \"ads\": [...] }\n * * n8n Output: Returns a new item with the filtered JSON structure:\n *   { \"ads\": [ ...filtered ads... ] }\n */\n\n// --- 1. THE FILTERING FUNCTION ---\n/**\n * Filters the raw ad data to include only the specified fields.\n * @param {object} dataObject - The original, unfiltered data object, e.g., { \"ads\": [...] }.\n * @returns {object} - The new object containing only the filtered data, e.g., { \"ads\": [...] }.\n */\nfunction filterAdData(dataObject) {\n    // Check if data is valid and has the expected \"ads\" array\n    if (!dataObject || !Array.isArray(dataObject.ads)) {\n        console.error(\"Invalid data structure. Expected an object with an 'ads' array.\");\n        // Return an empty object structure to avoid validation errors\n        return { ads: [] };\n    }\n\n    // Get the main 'ads' array from the input object\n    const originalAds = dataObject.ads;\n\n    // Use .map() to transform each item in the 'ads' array\n    const filteredAds = originalAds.map(item => {\n        \n        // Helper to safely extract the image URL from the 'variations' array\n        // It checks if variations exists, is an array, has at least one item,\n        // and that item has an 'image' property.\n        const imageUrl = (item.variations && Array.isArray(item.variations) && item.variations.length > 0 && item.variations[0].image)\n            ? item.variations[0].image\n            : (item.imageUrl ?? null); // <--- FALLBACK TO imageUrl FIELD\n\n        // Construct the new, filtered ad object\n        return {\n            advertiserId: item.advertiserId,\n            firstShown: item.firstShown,\n            lastShown: item.lastShown,\n            // <--- FALLBACK TO camelCase adUrl FIELD\n            url: item.adurl || item.adUrl || null,\n            format: item.format,\n            creativeRegions: item.creativeRegions, // Keep the full array\n            image_url: imageUrl // The extracted image URL\n        };\n    });\n\n    // Return the data as a single object with the 'ads' key\n    return {\n        ads: filteredAds\n    };\n}\n\n// --- 2. n8n EXECUTION ---\n\n// Get the input data from the first item (assuming it's coming in as JSON)\n// 'items' is the n8n variable holding all input items.\n// We assume originalScrapeData is an OBJECT: { \"ads\": [...] }\nconst originalScrapeData = items[0].json;\n\n// Run the filtering function\nconst filteredData = filterAdData(originalScrapeData);\n\n// Return the filtered data as the output of this node\n// filteredData is now an OBJECT { ads: [...] }, which satisfies n8n's validator.\nreturn [\n    {\n        json: filteredData\n    }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -157920,
+        10176
+      ],
+      "id": "7ca499c7-002d-45ed-804c-9fe7aeed4e93",
+      "name": "Google Ads2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code Node Script - Instagram Post Filter\n * * This script filters incoming JSON data from an Instagram API response.\n * * n8n Input: Assumes the input item (items[0].json) is an object\n * with an \"items\" array: { \"items\": [...] }\n * * n8n Output: Returns a new item with the filtered JSON structure:\n * { \"posts\": [ ...filtered posts... ] }\n */\n\n// --- 1. THE FILTERING FUNCTION ---\n/**\n * Filters the raw Instagram data to include only the specified fields.\n * @param {object} dataObject - The original, unfiltered data object, e.g., { \"items\": [...] }.\n * @returns {object} - The new object containing only the filtered data, e.g., { \"posts\": [...] }.\n */\nfunction filterInstagramData(dataObject) {\n    // Check if data is valid and has the expected \"items\" array\n    if (!dataObject || !Array.isArray(dataObject.items)) {\n        console.error(\"Invalid data structure. Expected an object with an 'items' array.\");\n        // Return an empty object structure to avoid validation errors\n        return { posts: [] };\n    }\n\n    // Get the main 'items' array from the input object\n    const originalItems = dataObject.items;\n\n    // Use .map() to transform each item in the 'items' array\n    const filteredPosts = originalItems.map(item => {\n        \n        // Safely extract nested data\n        const postText = (item.caption && item.caption.text) ? item.caption.text : null;\n        const username = (item.user && item.user.username) ? item.user.username : null;\n        const profilePicUrl = (item.user && item.user.profile_pic_url) ? item.user.profile_pic_url : null;\n        \n        // Construct the post URL from the 'code'\n        const postUrl = item.code ? `https://www.instagram.com/p/${item.code}/` : null;\n\n        // Construct the new, filtered post object\n        return {\n            text: postText,\n            username: username,\n            profile_pic_url: profilePicUrl,\n            comment_count: item.comment_count || 0,\n            like_count: item.like_count || 0,\n            display_uri: item.display_uri || null,\n            url: postUrl\n        };\n    });\n\n    // Return the data as a single object with the 'posts' key\n    return {\n        posts: filteredPosts\n    };\n}\n\n// --- 2. n8n EXECUTION ---\n\n// Get the input data from the first item (assuming it's coming in as JSON)\n// 'items' is the n8n variable holding all input items.\n// We assume originalScrapeData is an OBJECT: { \"items\": [...] }\nconst originalScrapeData = items[0].json;\n\n// Run the filtering function\nconst filteredData = filterInstagramData(originalScrapeData);\n\n// Return the filtered data as the output of this node\n// filteredData is now an OBJECT { posts: [...] }, which satisfies n8n's validator.\nreturn [\n    {\n        json: filteredData\n    }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -157920,
+        10368
+      ],
+      "id": "dc263ade-7882-48f1-964b-be4ba16c1cd8",
+      "name": "Instagram posts"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://thhogbjtoydcodqqnupq.supabase.co/rest/v1/rpc/upsert_snapshot_bundle",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaG9nYmp0b3lkY29kcXFudXBxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODU2NDc1MywiZXhwIjoyMDc0MTQwNzUzfQ.O4VDqrc6PgbrWh9HEztckeUZY9PULl9t1KLbsnSnxMk"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaG9nYmp0b3lkY29kcXFudXBxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODU2NDc1MywiZXhwIjoyMDc0MTQwNzUzfQ.O4VDqrc6PgbrWh9HEztckeUZY9PULl9t1KLbsnSnxMk"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n\"p_handle\": \"totogaming.ro\",\n\"p_snapshot_date\": $now.format('DD'),\n\"p_bundle\": {\n\"results\": $(\"Facebook ads1\").first().json.results ?? [],\n\"ads\": $(\"Google Ads2\").first().json.ads ?? [],\n\"posts\": $(\"Instagram posts\").first().json.posts ?? []\n}\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -157472,
+        10176
+      ],
+      "id": "a9d61d9f-6d1a-4e7e-9ae9-ed0ba93605eb",
+      "name": "HTTP Request3",
+      "executeOnce": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "JgG1TBlQHpZ7kB8q",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -157696,
+        10160
+      ],
+      "id": "8e6c60ac-c53e-4546-86fa-e9b6ba11ea34",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "Role (🦸):\nYou are a Senior Social Media Marketing Analyst and Data Advisor. Your sole function is to provide expert analysis and retrieve data based only on the internal knowledge base provided to you.\nCore Constraint (🚫):\nYou MUST NOT use any external knowledge or information. Your entire world is confined to the Vector Database and the PostgreSQL Database you have access to. Every fact, summary, and piece of data in your response MUST be directly derived from the retrieved context. Never fabricate information. If the answer is not in the provided context, you must state that the information is unavailable.\nOperational Chain (⛓️):\nYour operational flow is as follows:\nRewrite Query: First, you must send the original_user_query to the \"Query Rewriter Agent\". You will receive back a set of rewritten_queries optimized for retrieval.\nSelect Tool & Retrieve: Next, you must decide which database to use (Vector or Postgres) based on the user's query intent (see Guiding Principles). Then, use the rewritten_queries to retrieve the necessary context or data from that source.\nAnalyze Context: Merge, deduplicate, and analyze all retrieved context (from Vector DB) or data (from Postgres).\nSynthesize Answer: Finally, synthesize your answer based only on this retrieved information, adhering strictly to the Output & Formatting Guidelines.\nDatabase & Schema Knowledge (📚):\nYou have pre-loaded, external knowledge of the complete PostgreSQL database schema (all tables, columns, and data types) and the Vector Database metadata structure. Your task is to use this assumed knowledge to write accurate, efficient queries. You do not need to state the schema in your response.\nGuiding Principles (🧠):\nTool Selection Logic: You must analyze the user's query intent to select the correct database.\nUse the Vector Database (Semantic Search) IF: The query is contextual, analytical, or qualitative (e.g., \"What is the sentiment?\", \"Summarize ad strategies,\" \"Common themes in comments?\").\nUse the PostgreSQL Database (SQL Query) IF: The query is factual, quantitative, or metric-based (e.g., \"How many ads?\", \"List posts with >100 likes,\" \"What is the total ad spend?\").\nPlanning for Complex Queries: If a user's query requires information from both the Postgres DB and the Vector DB (e.g., \"What's the sentiment of our top 5 most-liked posts?\"), you must create a multi-step plan.\nFirst, query the Postgres DB to get the factual data (e.g., find the post_id of the top 5 posts, using your schema knowledge).\nThen, use the results from that query (e.g., the post_id list) to filter your query against the Vector DB (e.g., find the sentiment for those specific posts).\nFinally, synthesize all the information into a single, cohesive answer.\nRead-Only Operations: You must only generate read-only SELECT statements for PostgreSQL. You are forbidden from generating INSERT, UPDATE, DELETE, DROP, or any other data-modifying queries.\nSynthesize & Cite: Your goal is to provide a compelling, expert analysis, not just a raw list of facts. Synthesize the retrieved context into a coherent answer. You should embed citations (like a Post ID or Doc #) naturally within your response only when it is appropriate and adds necessary clarity.\nError & Ambiguity Handling (🚦):\nClarify First: If a user's request is ambiguous (e.g., \"What's our best post?\"), you must ask for clarification before querying. (e.g., \"Happy to help. By 'best,' do you mean the one with the most likes, comments, or highest ad spend?\").\nSQL Errors: If you generate a SQL query and it returns an error, do not show the error to the user. Apologize, state that you were unable to retrieve the data, and try to ask the user for a simpler, clearer request.\nNo Results: If a query (either SQL or Vector) returns zero results, do not just say \"no results.\" Inform the user politely. (e.g., \"I searched for ads matching that criteria but did not find any in the database.\").\nGood Response Examples (✅):\n(These examples use your assumed schema knowledge to demonstrate correct output format.)\nExample 1: (Vector DB / Analytical Query)\nUser Query: \"What's the general sentiment of our 'Summer Sale' campaign ads?\"\nAgent Response:\nBased on my analysis of the ad creatives and associated user comments, the sentiment for the \"Summer Sale\" campaign is overwhelmingly positive.\nThe primary theme is excitement about the discount levels, with many users tagging friends. However, I did find a minor negative theme emerging from a few posts (Source: ad_id 'ad-123', ad_id 'ad-124') where users expressed frustration about popular sizes selling out quickly.\nExample 2: (PostgreSQL / Data Query)\nUser Query: \"How many ads did we run in October and what was the total spend?\"\nAgent Response:\nSQL\nSELECT\n  COUNT(ad_id) AS total_ads,\n  SUM(spend) AS total_spend\nFROM ads\nWHERE created_at >= '2025-10-01' AND created_at < '2025-11-01';\n\n\nResults:\ntotal_ads\ntotal_spend\n84\n$4,210.50\n\nYou ran 84 ads in October, with a total spend of $4,210.50.\nOutput & Formatting Guidelines (🎨):\nAdaptive Formatting: You must generate a compelling and detailed response in an appropriate format based on the user's query. There is no rigid template.\nClarity Above All: Use paragraphs for analysis, bullet points for lists, and Markdown tables for structured data as you see fit to create the clearest and most professional response.\nSQL Query Requirement: When your answer is based on data from PostgreSQL, you must first display the read-only SELECT query that was used to retrieve the data, formatted in a SQL code block.\nProfessional Tone: Your entire output must be analytical, insightful, and written in the tone of a marketing expert.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -159600,
+        9568
+      ],
+      "id": "d41a1a83-1118-4c39-8e11-7c6979cd5295",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -159904,
+        9744
+      ],
+      "id": "d039d937-3ef0-4528-9650-f929d53ae6b6",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "rpPOr8WtrtgVIoPw",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{$json.body.sessionId || $json.sessionId || $json.query.sessionId || $json.params.sessionId || $execution.id}}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        -159728,
+        9744
+      ],
+      "id": "1b31cb05-30c2-489f-8d8f-b13d95d048f0",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "DQVSXmGb9Ekaah4l",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -158672,
+        9664
+      ],
+      "id": "58cadea3-0d0b-4d54-9a8b-651bb59164f1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id, \n  ad_text,\n  'facebook_ads' AS source_table -- <-- ДОБАВЬТЕ ЭТУ СТРОКУ\nFROM facebook_ads \nWHERE \n  vectorized_at IS NULL AND ad_text IS NOT NULL \nLIMIT 50;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -158448,
+        9568
+      ],
+      "id": "4622a4ca-8de9-490c-96ef-37a62421aa40",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id, \n  text AS ad_text,\n  'instagram_posts' AS source_table -- <-- ДОБАВЬТЕ ЭТУ СТРОКУ\nFROM instagram_posts \nWHERE \n  vectorized_at IS NULL AND text IS NOT NULL \nLIMIT 50;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -158448,
+        9760
+      ],
+      "id": "0f6b1169-fd18-42be-a7d7-81900f63732f",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -158224,
+        9664
+      ],
+      "id": "3cce6f22-8a3a-4e3e-8843-d7e5e93f872c",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "modelName": "intfloat/multilingual-e5-large-instruct",
+        "options": {
+          "provider": "auto"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        -157776,
+        9664
+      ],
+      "id": "08c6006d-8c62-459f-ba22-dd1572ac087b",
+      "name": "Embeddings HuggingFace Inference2",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "W3Uje3HzUMmseLtI",
+          "name": "HuggingFaceApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8n",
+          "mode": "list",
+          "cachedResultName": "n8n"
+        },
+        "options": {
+          "clearNamespace": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        -157744,
+        9456
+      ],
+      "id": "0c0a9ccc-c3e3-418a-ae8d-6c27bc90c3a1",
+      "name": "Pinecone Vector Store1",
+      "notesInFlow": false,
+      "credentials": {
+        "pineconeApi": {
+          "id": "3EakSORewGodzMk4",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst documents = [];\n\nfor (const item of items) {\n  const data = item.json;\n\n  // Мы получаем source_table ПРЯМО из SQL-запроса\n  const source_table = data.source_table; \n  const source_id = data.id;\n  const text = data.ad_text;\n  \n  // 1. Создаем уникальный ID для Pinecone\n  const pinecone_id = `${source_table}_${source_id}`;\n\n  // 2. Готовим документ для Pinecone\n  documents.push({\n    json: {\n      // Это поле n8n будет использовать для векторизации\n   pageContent: \"query: \" + text,\n      \n      // Это данные, которые мы сохраним в Pinecone\n      metadata: {\n        source_table: source_table,\n        source_id: source_id,\n        text_content: text.substring(0, 1000) // Храним часть текста\n      },\n      \n      // Это ID, который Pinecone будет использовать\n      id: pinecone_id,\n      \n      // Это данные для нашего последнего шага (Обновление Supabase)\n      db_id: source_id,\n      db_table: source_table\n    }\n  });\n}\n\n// Возвращаем список готовых документов\nreturn documents;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -158000,
+        9664
+      ],
+      "id": "7c9ff1b4-f179-4a17-a45a-51724eda1ef6",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DO $$\nBEGIN\n  IF '{{ $json.db_table }}' = 'facebook_ads' THEN\n    \n    UPDATE public.facebook_ads \n    SET vectorized_at = NOW() \n    WHERE id = {{ $json.db_id }};\n\n  ELSIF '{{ $json.db_table }}' = 'instagram_posts' THEN\n    \n    UPDATE public.instagram_posts \n    SET vectorized_at = NOW() \n    WHERE id = {{ $json.db_id }};\n\n  END IF;\nEND $$;",
+        "options": {}
+      },
+      "id": "49b3b11c-1136-4c20-8217-875ed944b024",
+      "name": "Update Vectorized Timestamp",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -157440,
+        9456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Query Facebook ads data from the facebook_ads table. Use this to retrieve ad text, images, videos, CTA types, display formats, page information, and date ranges for Facebook advertising campaigns.",
+        "operation": "executeQuery",
+        "query": "SELECT * FROM facebook_ads WHERE 1=1",
+        "options": {}
+      },
+      "id": "145fe1db-642b-4dce-887e-696a4055479c",
+      "name": "Query Facebook Ads Tool",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -159344,
+        9744
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Query Google ads data from the google_ads table. Use this to retrieve advertiser information, ad formats, creative regions, images, and date ranges (first shown, last shown) for Google advertising campaigns.",
+        "operation": "executeQuery",
+        "query": "SELECT * FROM google_ads WHERE 1=1",
+        "options": {}
+      },
+      "id": "d63d5e90-94d1-49c4-b38f-3342020b1dc4",
+      "name": "Query Google Ads Tool",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -159184,
+        9744
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Query Instagram posts data from the instagram_posts table. Use this to retrieve post text, usernames, profile pictures, engagement metrics (likes, comments), display images, and post URLs.",
+        "operation": "executeQuery",
+        "query": "SELECT * FROM instagram_posts WHERE 1=1",
+        "options": {}
+      },
+      "id": "fef66553-2cb3-4faf-ac08-e5a40f7c037e",
+      "name": "Query Instagram Posts Tool",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -159040,
+        9744
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SQIu4JhD7knHI9wq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.metadata.text_content }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $json.metadata.source_table }}"
+              },
+              {
+                "name": "source_id",
+                "value": "={{ $json.metadata.source_id }}"
+              },
+              {
+                "name": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "name": "db_id",
+                "value": "={{ $json.db_id }}"
+              },
+              {
+                "name": "db_table",
+                "value": "={{ $json.db_table }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -157552,
+        9680
+      ],
+      "id": "5106ef5e-99c1-4eca-bf47-9068c8f2f8c9",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "content": "# Vector db\n\n",
+        "height": 528,
+        "width": 1600,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -158752,
+        9392
+      ],
+      "typeVersion": 1,
+      "id": "fca743de-3cf9-4b08-bc7b-39f6cf4efd25",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Social media posts and ads",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8n",
+          "mode": "list",
+          "cachedResultName": "n8n"
+        },
+        "topK": 20,
+        "useReranker": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        -159392,
+        10064
+      ],
+      "id": "978856ab-8d53-43e5-8751-534ee0383d6c",
+      "name": "Vector",
+      "credentials": {
+        "pineconeApi": {
+          "id": "3EakSORewGodzMk4",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "intfloat/multilingual-e5-large-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        -159456,
+        10208
+      ],
+      "id": "219930e9-b3f3-497a-892f-9eea08e5e6d5",
+      "name": "Embeddings HuggingFace Inference1",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "W3Uje3HzUMmseLtI",
+          "name": "HuggingFaceApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Query re-writer",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=\n🦸 Role\nYou are the Query Rewriting Agent in a Retrieval-Augmented Generation (RAG) system.  \nYour purpose is to take a user query and produce rewritten variants that improve how the system retrieves information.\n\n🧑‍💻 Domain Context\nFor disambiguation only, most user queries relate to:\nData about social media posts and ads that should be analyzed and relate to.\nIf the query clearly falls outside this domain, ignore this context and treat it neutrally.\n\n✍️ Instructions\n1. Read the user’s query carefully and understand its meaning.  \n2. Rewrite it into 2–3 concise, clear, and semantically rich alternatives.  \n3. Keep the original intent identical.  \n4. Avoid adding context, commentary, explanations, or metadata — only produce rewritten text.  \n5. Each rewritten query should be 10–25 words long and phrased naturally for database or vector search.  \n6. Ensure the variants are meaningfully different — vary wording and phrasing, not intent.  \n7. If the query appears vague, expand pronouns or shorthand using logical context.  \n8. Do not include formatting, numbering, or markdown — only clean text lines.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -159888,
+        10048
+      ],
+      "id": "18c73bb1-feba-4702-8c39-b0869102797e",
+      "name": "Re-Ranker"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -159936,
+        10208
+      ],
+      "id": "7a3b6cb4-bd00-4593-b162-54c84c16ce68",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "rpPOr8WtrtgVIoPw",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# 📊 Re-ranker",
+        "height": 416,
+        "width": 480,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -160016,
+        9968
+      ],
+      "typeVersion": 1,
+      "id": "7e899c17-8eef-45c3-b32a-b0ba2fb8fd9e",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# 🧠 RAG Memory",
+        "height": 416,
+        "width": 480,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -159536,
+        9968
+      ],
+      "typeVersion": 1,
+      "id": "2327ad6e-e3f0-4eb8-a623-13ef9f331c83",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        -159216,
+        10208
+      ],
+      "id": "c6f778db-0b1e-46df-95da-3bd95d2b9114",
+      "name": "Reranker Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "HkcJT5pN5Tf6lERa",
+          "name": "CohereApi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        -159600,
+        9744
+      ],
+      "id": "f990c8c7-cbd3-43b9-9fa1-83a043e6ff91",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "content": "# 🤖 Agent",
+        "height": 1008,
+        "width": 1456
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -160208,
+        9488
+      ],
+      "typeVersion": 1,
+      "id": "26fdd137-751c-4b90-a349-c1b640c680cd",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -159920,
+        9568
+      ],
+      "id": "f13ece55-3ebd-412c-a653-f8f4e2850c72",
+      "name": "Webhook",
+      "webhookId": "33efc7a7-07f0-4c98-89b4-984e985b7494"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"output\": $json.output } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -159248,
+        9568
+      ],
+      "id": "c2a5ecd0-bd43-42de-a657-0370a435ee88",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "wimedia.app.n8n.cloud",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "content-length": "91",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "en-US,en;q=0.9,ru;q=0.8,hy;q=0.7,fr;q=0.6",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "2a02:2a57:cf:0:7c49:79ec:e6d0:2f66",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "AM",
+            "cf-ray": "99b717135001ddcf-EVN",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "origin": "https://9d5deebc-3516-4e59-95f8-1eee24be3381-00-1sea7qjo5uqfo.picard.replit.dev",
+            "priority": "u=1, i",
+            "referer": "https://9d5deebc-3516-4e59-95f8-1eee24be3381-00-1sea7qjo5uqfo.picard.replit.dev/",
+            "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "2a02:2a57:cf:0:7c49:79ec:e6d0:2f66, 172.70.186.141",
+            "x-forwarded-host": "wimedia.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-27-56cf765df-rwcc8",
+            "x-is-trusted": "yes",
+            "x-real-ip": "2a02:2a57:cf:0:7c49:79ec:e6d0:2f66"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message": "what is toto doing on ig ?",
+            "sessionId": "bbd54e9a-f748-4519-9b36-8004174cc395"
+          },
+          "webhookUrl": "https://wimedia.app.n8n.cloud/webhook/chat",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Facebook ads": {
+      "main": [
+        [
+          {
+            "node": "Facebook ads1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Facebook ads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Ads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get an instagram user s posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Ads": {
+      "main": [
+        [
+          {
+            "node": "Google Ads2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get an instagram user s posts": {
+      "main": [
+        [
+          {
+            "node": "Instagram posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook ads1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Ads2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Instagram posts": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference2": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store1": {
+      "main": [
+        [
+          {
+            "node": "Update Vectorized Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Facebook Ads Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Google Ads Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Instagram Posts Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Vector",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Re-Ranker",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranker Cohere": {
+      "ai_reranker": [
+        [
+          {
+            "node": "Vector",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-Ranker": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "89a8297c-594a-4d64-97b0-98ccfb026250",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "afd67e11bcc52aa4f90bc1e768b571cba77ff8cb3d51abf301312e60963834b6"
+  },
+  "id": "s5fsYlWcULT4ZWgV",
+  "tags": []
+}

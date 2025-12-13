@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Suite - Nundu AI</title>
+    <link rel="icon" type="image/png" href="attached_assets/nundu_ai_logo_1765627158270.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="intelligence.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="dashboard-page">
+    <div class="app-container dashboard-layout">
+        <div class="animated-bg">
+            <div class="bg-gradient"></div>
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+            <div class="blob blob-3"></div>
+        </div>
+
+        <div class="main-layout">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-brand">
+                        <button class="menu-btn" id="menuBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <span class="brand-text">Nundu AI</span>
+                    </div>
+                    <button class="collapse-btn" id="collapseBtn">
+                        <svg class="chevron-left" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/>
+                        </svg>
+                        <svg class="chevron-right" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="sidebar-scroll-container">
+                    <div class="sidebar-actions">
+                        <button class="new-chat-btn" onclick="window.location.href='/index.html'">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                            </svg>
+                            <span class="btn-text">New chat</span>
+                        </button>
+                    </div>
+                    
+                    <nav class="sidebar-nav">
+                        <a href="/index.html" class="nav-item" data-view="chat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z" fill="currentColor"/>
+                            </svg>
+                            <span class="nav-text">Chat</span>
+                        </a>
+                        <a href="/dashboard.html" class="nav-item active" data-view="dashboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" fill="currentColor"/>
+                            </svg>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </nav>
+                    
+                    <div class="recent-chats">
+                        <div class="recent-header">
+                            <span class="recent-label">RECENT</span>
+                        </div>
+                        <div class="chat-history" id="chatHistory"></div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-footer">
+                    <button class="settings-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81a.488.488 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+                        </svg>
+                        <span class="btn-text">Settings & help</span>
+                    </button>
+                </div>
+            </aside>
+            
+            <main class="dashboard-main">
+                <header class="dashboard-header">
+                    <div class="header-info">
+                        <h1 class="header-title">Competitive Intelligence Suite</h1>
+                        <p class="header-subtitle">Market Analysis & Competitor Tracking</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="refresh-btn" id="refreshBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>
+                            </svg>
+                            <span>Refresh</span>
+                        </button>
+                        <button class="refresh-btn" id="logoutBtn" style="margin-left: 8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" fill="currentColor"/>
+                            </svg>
+                            <span>Sign out</span>
+                        </button>
+                    </div>
+                </header>
+                
+                <div class="dashboard-content">
+                    <div class="filters-section">
+                        <div class="filters-header">
+                            <h2>Filters</h2>
+                            <button class="clear-filters-btn" id="clearFiltersBtn">Clear all</button>
+                        </div>
+                        
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label for="dateFrom">Date From</label>
+                                <input type="date" id="dateFrom" class="filter-input" placeholder="mm/dd/yyyy">
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="dateTo">Date To</label>
+                                <input type="date" id="dateTo" class="filter-input" placeholder="mm/dd/yyyy">
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="companyFilter">Company</label>
+                                <select id="companyFilter" class="filter-select">
+                                    <option value="">All Companies</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="compareCompanyFilter">Compare With</label>
+                                <select id="compareCompanyFilter" class="filter-select">
+                                    <option value="">Select Competitor</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <nav class="pillar-tabs">
+                        <button class="pillar-tab active" data-pillar="battlefield">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+                            </svg>
+                            <span>Battlefield</span>
+                        </button>
+                        <button class="pillar-tab" data-pillar="pulse">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" fill="currentColor"/>
+                            </svg>
+                            <span>Pulse</span>
+                        </button>
+                        <button class="pillar-tab" data-pillar="creative">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+                            </svg>
+                            <span>Creative</span>
+                        </button>
+                        <button class="pillar-tab" data-pillar="espionage">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                            </svg>
+                            <span>Espionage</span>
+                        </button>
+                    </nav>
+                    
+                    <div class="pillar-content" id="battlefieldPillar">
+                        <div class="pillar-header">
+                            <h2>Battlefield Overview</h2>
+                            <p>Who is dominating the conversation right now?</p>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon blue">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalAdsCount">0</span>
+                                    <span class="stat-label">Total Ads</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon green">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalPostsCount">0</span>
+                                    <span class="stat-label">Social Posts</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon orange">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalCompaniesCount">0</span>
+                                    <span class="stat-label">Competitors</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon purple">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalEngagement">0</span>
+                                    <span class="stat-label">Total Engagement</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="battlefield-grid">
+                            <div class="chart-card">
+                                <h3>Share of Voice - Ads</h3>
+                                <div class="chart-container">
+                                    <canvas id="shareOfVoiceAdsChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <h3>Share of Voice - Posts</h3>
+                                <div class="chart-container">
+                                    <canvas id="shareOfVoicePostsChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <h3>Share of Engagement</h3>
+                                <div class="chart-container">
+                                    <canvas id="shareOfEngagementChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="competitor-cards" id="competitorCards">
+                        </div>
+                    </div>
+                    
+                    <div class="pillar-content hidden" id="pulsePillar">
+                        <div class="pillar-header">
+                            <h2>Pulse of Engagement</h2>
+                            <p>Is your competitor going viral, or are they quiet?</p>
+                        </div>
+                        
+                        <div class="timeline-controls">
+                            <div class="timeline-legend" id="timelineLegend">
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card full-width">
+                            <h3>Activity Timeline</h3>
+                            <div class="chart-container large">
+                                <canvas id="activityTimelineChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="pulse-grid">
+                            <div class="chart-card">
+                                <h3>Instagram Engagement Over Time</h3>
+                                <div class="chart-container">
+                                    <canvas id="instagramTrendChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <h3>Ad Campaign Activity</h3>
+                                <div class="chart-container">
+                                    <canvas id="adCampaignChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid" style="margin-top: 24px;">
+                            <div class="stat-card">
+                                <div class="stat-icon blue">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="avgCampaignDuration">0</span>
+                                    <span class="stat-label">Avg Campaign Days</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon green">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="minCampaignDuration">0</span>
+                                    <span class="stat-label">Min Campaign Days</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon orange">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="maxCampaignDuration">0</span>
+                                    <span class="stat-label">Max Campaign Days</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon purple">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="totalCampaignsWithDuration">0</span>
+                                    <span class="stat-label">Campaigns Tracked</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card full-width" style="margin-top: 24px;">
+                            <h3>Posting Frequency by Competitor (Posts per Week)</h3>
+                            <div class="chart-container large">
+                                <canvas id="postingFrequencyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="pillar-content hidden" id="creativePillar">
+                        <div class="pillar-header">
+                            <h2>Creative Strategy</h2>
+                            <p>What creative angles are they using to convert customers?</p>
+                        </div>
+                        
+                        <div class="creative-tabs">
+                            <button class="creative-tab active" data-creative="posts">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2z" fill="currentColor"/>
+                                </svg>
+                                Top Performing Posts
+                            </button>
+                            <button class="creative-tab" data-creative="facebook">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" fill="currentColor"/>
+                                </svg>
+                                Facebook Ads
+                            </button>
+                            <button class="creative-tab" data-creative="google">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" fill="currentColor"/>
+                                </svg>
+                                Google Ads
+                            </button>
+                            <button class="creative-tab" data-creative="analytics">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" fill="currentColor"/>
+                                </svg>
+                                Ad Analytics
+                            </button>
+                        </div>
+                        
+                        <div class="creative-content" id="postsCreative">
+                            <div class="gallery-header">
+                                <span class="gallery-count" id="postsGalleryCount">0 posts</span>
+                                <span class="gallery-sort">Sorted by virality</span>
+                            </div>
+                            <div class="posts-gallery" id="postsGallery">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Loading top posts...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="creative-content hidden" id="facebookCreative">
+                            <div class="gallery-header">
+                                <span class="gallery-count" id="facebookGalleryCount">0 ads</span>
+                                <span class="gallery-sort">Most recent first</span>
+                            </div>
+                            <div class="ads-gallery" id="facebookGallery">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Loading Facebook ads...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="creative-content hidden" id="googleCreative">
+                            <div class="gallery-header">
+                                <span class="gallery-count" id="googleGalleryCount">0 ads</span>
+                                <span class="gallery-sort">Most recent first</span>
+                            </div>
+                            <div class="ads-gallery" id="googleGallery">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Loading Google ads...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="creative-content hidden" id="analyticsCreative">
+                            <div class="analytics-charts-grid">
+                                <div class="chart-card">
+                                    <h3>Ad Format Distribution</h3>
+                                    <div class="chart-container">
+                                        <canvas id="adFormatDistributionChart"></canvas>
+                                    </div>
+                                </div>
+                                
+                                <div class="chart-card">
+                                    <h3>CTA Type Breakdown</h3>
+                                    <div class="chart-container">
+                                        <canvas id="ctaTypeBreakdownChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="pillar-content hidden" id="espionagePillar">
+                        <div class="pillar-header">
+                            <h2>Website Espionage</h2>
+                            <p>Did they change their pricing or value proposition?</p>
+                        </div>
+                        
+                        <div class="espionage-tabs">
+                            <button class="espionage-tab active" data-espionage="screenshots">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+                                </svg>
+                                Screenshots
+                            </button>
+                            <button class="espionage-tab" data-espionage="changes">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" fill="currentColor"/>
+                                </svg>
+                                Text Changes
+                            </button>
+                            <button class="espionage-tab" data-espionage="diff">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M9 7H7v2h2V7zm0 4H7v2h2v-2zm0-8c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H9zm3 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 12h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" fill="currentColor"/>
+                                </svg>
+                                Diff Viewer
+                            </button>
+                        </div>
+                        
+                        <div class="espionage-content" id="screenshotsEspionage">
+                            <div class="screenshots-grid" id="screenshotsGrid">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Loading screenshots...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="espionage-content hidden" id="changesEspionage">
+                            <div class="changes-timeline" id="changesTimeline">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    <span>Loading website changes...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="espionage-content hidden" id="diffEspionage">
+                            <div class="diff-controls">
+                                <div class="filter-group">
+                                    <label for="diffCompanySelect">Company</label>
+                                    <select id="diffCompanySelect" class="filter-select">
+                                        <option value="">Select Company</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="diff-viewer" id="diffViewer">
+                                <div class="empty-state">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" fill="currentColor"/>
+                                    </svg>
+                                    <h4>Select a company to compare</h4>
+                                    <p>Choose a company to see how their messaging changed over time</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="utils.js"></script>
+    <script src="database.js"></script>
+    <script src="intelligence.js"></script>
+    <script>
+        const collapseBtn = document.getElementById('collapseBtn');
+        const sidebar = document.getElementById('sidebar');
+        
+        collapseBtn.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async function() {
+            await signOut();
+        });
+    </script>
+</body>
+</html>
