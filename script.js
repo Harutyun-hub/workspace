@@ -104,6 +104,7 @@ function formatMessageContent(content) {
 }
 
 function addMessageToUI(role, content, isTyping = false, enableTypingEffect = false) {
+    hideWelcomeMessage();
     const messagesContainer = document.getElementById('messages');
     
     const messageDiv = document.createElement('div');
@@ -399,6 +400,7 @@ async function loadConversation(conversationId) {
     const messagesContainer = document.getElementById('messages');
     
     try {
+        hideWelcomeMessage();
         messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="attached_assets/nundu_ai_logo_1765627158270.png" alt="Loading"></div></div>';
         
         currentConversationId = conversationId;
@@ -410,8 +412,9 @@ async function loadConversation(conversationId) {
         const messages = await loadMessages();
         
         if (messages.length === 0) {
-            messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa0a6;">No messages yet. Start a conversation!</div>';
+            showWelcomeMessage();
         } else {
+            hideWelcomeMessage();
             messages.forEach(msg => {
                 addMessageToUI(msg.role, msg.content);
             });
@@ -574,12 +577,36 @@ function handleEnterKey(e) {
     }
 }
 
+function showWelcomeMessage() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const welcomeName = document.getElementById('welcomeName');
+    const user = getCurrentUser();
+    
+    if (welcomeMessage) {
+        if (user) {
+            const fullName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+            const firstName = fullName.split(' ')[0] || 'there';
+            welcomeName.textContent = firstName;
+        }
+        welcomeMessage.classList.remove('hidden');
+    }
+}
+
+function hideWelcomeMessage() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        welcomeMessage.classList.add('hidden');
+    }
+}
+
 async function handleNewChatClick(e) {
     e.preventDefault();
     console.log('New chat button clicked');
     try {
         const messagesContainer = document.getElementById('messages');
         messagesContainer.innerHTML = '';
+        
+        showWelcomeMessage();
         
         await createNewConversation();
         
@@ -668,6 +695,7 @@ async function initializeChat() {
         } else {
             console.log('Creating new conversation...');
             await createNewConversation();
+            showWelcomeMessage();
         }
     } catch (error) {
         console.error('Error during chat initialization:', error);
