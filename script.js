@@ -231,6 +231,12 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'message-copy-btn';
+    copyBtn.title = 'Copy text';
+    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    copyBtn.addEventListener('click', () => copyMessageText(contentDiv, copyBtn));
+    
     if (isTyping) {
         contentDiv.innerHTML = `
             <div class="typing-indicator-container">
@@ -242,10 +248,12 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
                 <div class="thinking-text">Thinking</div>
             </div>
         `;
+        copyBtn.style.display = 'none';
     } else {
         if (role === 'ai') {
             if (enableTypingEffect) {
                 contentDiv.innerHTML = '';
+                messageDiv.appendChild(copyBtn);
                 messageDiv.appendChild(avatar);
                 messageDiv.appendChild(contentDiv);
                 messagesContainer.appendChild(messageDiv);
@@ -260,6 +268,7 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
         }
     }
     
+    messageDiv.appendChild(copyBtn);
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(contentDiv);
     messagesContainer.appendChild(messageDiv);
@@ -271,6 +280,20 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
     }
     
     return messageDiv;
+}
+
+function copyMessageText(contentDiv, copyBtn) {
+    const textContent = contentDiv.innerText || contentDiv.textContent;
+    navigator.clipboard.writeText(textContent).then(() => {
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+            copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            copyBtn.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text:', err);
+    });
 }
 
 function showTypingEffect(content, contentDiv) {

@@ -781,10 +781,56 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 12px;
+    position: relative;
 }
 
 .message.user {
     flex-direction: row-reverse;
+}
+
+.message-copy-btn {
+    opacity: 0;
+    visibility: hidden;
+    position: absolute;
+    left: -40px;
+    top: 8px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message:hover .message-copy-btn {
+    opacity: 1;
+    visibility: visible;
+}
+
+.message-copy-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    color: #374151;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.message-copy-btn.copied {
+    color: #10b981;
+}
+
+.message-copy-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.message.user .message-copy-btn {
+    left: auto;
+    right: -40px;
 }
 
 .message-avatar {
