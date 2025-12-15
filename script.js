@@ -66,41 +66,150 @@ async function loadMessages() {
 }
 
 function formatMessageContent(content) {
-    let formatted = content;
-    
-    // Escape HTML to prevent XSS
+    if (!content || typeof content !== 'string') {
+        return '';
+    }
+
     const escapeHtml = (text) => {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     };
-    
-    formatted = escapeHtml(formatted);
-    
-    // Convert URLs to clickable links
-    const urlPattern = /(https?:\/\/[^\s]+)/g;
-    formatted = formatted.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-    
-    // Convert **bold** to <strong>
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    
-    // Convert *italic* to <em>
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    
-    // Convert line breaks to <br>
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    // Convert double breaks to paragraphs
-    formatted = formatted.replace(/(<br>){2,}/g, '</p><p>');
-    
-    // Wrap in paragraph tags
-    formatted = '<p>' + formatted + '</p>';
-    
-    // Clean up empty paragraphs
-    formatted = formatted.replace(/<p><\/p>/g, '');
-    formatted = formatted.replace(/<p><br><\/p>/g, '');
-    
-    return formatted;
+
+    const lines = content.split('\n');
+    let html = '';
+    let inList = false;
+    let listType = null;
+    let currentParagraph = [];
+
+    const flushParagraph = () => {
+        if (currentParagraph.length > 0) {
+            const text = currentParagraph.join(' ').trim();
+            if (text) {
+                html += `<p class="md-paragraph">${formatInlineText(text)}</p>`;
+            }
+            currentParagraph = [];
+        }
+    };
+
+    const closeList = () => {
+        if (inList) {
+            html += listType === 'ul' ? '</ul>' : '</ol>';
+            inList = false;
+            listType = null;
+        }
+    };
+
+    const formatInlineText = (text) => {
+        let formatted = escapeHtml(text);
+        
+        const urlPattern = /(https?:\/\/[^\s<]+)/g;
+        formatted = formatted.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        formatted = formatted.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+        
+        return formatted;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmedLine = line.trim();
+
+        if (trimmedLine === '' && currentParagraph.length > 0) {
+            closeList();
+            flushParagraph();
+            continue;
+        }
+
+        if (trimmedLine === '---' || trimmedLine === '***' || trimmedLine === '___') {
+            closeList();
+            flushParagraph();
+            html += '<hr class="md-hr">';
+            continue;
+        }
+
+        const h1Match = trimmedLine.match(/^#\s+(.+)$/);
+        if (h1Match) {
+            closeList();
+            flushParagraph();
+            html += `<h1 class="md-h1">${formatInlineText(h1Match[1])}</h1>`;
+            continue;
+        }
+
+        const h2Match = trimmedLine.match(/^##\s+(.+)$/);
+        if (h2Match) {
+            closeList();
+            flushParagraph();
+            html += `<h2 class="md-h2">${formatInlineText(h2Match[1])}</h2>`;
+            continue;
+        }
+
+        const h3Match = trimmedLine.match(/^###\s+(.+)$/);
+        if (h3Match) {
+            closeList();
+            flushParagraph();
+            html += `<h3 class="md-h3">${formatInlineText(h3Match[1])}</h3>`;
+            continue;
+        }
+
+        const h4Match = trimmedLine.match(/^####\s+(.+)$/);
+        if (h4Match) {
+            closeList();
+            flushParagraph();
+            html += `<h4 class="md-h4">${formatInlineText(h4Match[1])}</h4>`;
+            continue;
+        }
+
+        const ulMatch = trimmedLine.match(/^[-*]\s+(.+)$/);
+        if (ulMatch) {
+            flushParagraph();
+            if (!inList || listType !== 'ul') {
+                closeList();
+                html += '<ul class="md-ul">';
+                inList = true;
+                listType = 'ul';
+            }
+            html += `<li class="md-li">${formatInlineText(ulMatch[1])}</li>`;
+            continue;
+        }
+
+        const olMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+        if (olMatch) {
+            flushParagraph();
+            if (!inList || listType !== 'ol') {
+                closeList();
+                html += '<ol class="md-ol">';
+                inList = true;
+                listType = 'ol';
+            }
+            html += `<li class="md-li">${formatInlineText(olMatch[2])}</li>`;
+            continue;
+        }
+
+        const blockquoteMatch = trimmedLine.match(/^>\s*(.*)$/);
+        if (blockquoteMatch) {
+            closeList();
+            flushParagraph();
+            html += `<blockquote class="md-blockquote">${formatInlineText(blockquoteMatch[1])}</blockquote>`;
+            continue;
+        }
+
+        if (trimmedLine !== '') {
+            closeList();
+            currentParagraph.push(trimmedLine);
+        }
+    }
+
+    closeList();
+    flushParagraph();
+
+    if (!html.trim()) {
+        html = `<p class="md-paragraph">${formatInlineText(content)}</p>`;
+    }
+
+    return `<div class="md-content">${html}</div>`;
 }
 
 function addMessageToUI(role, content, isTyping = false, enableTypingEffect = false) {
