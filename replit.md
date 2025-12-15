@@ -52,7 +52,15 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - AI requests include `companyKey` parameter to provide company-specific context.
 - **AI Integration**: n8n webhook endpoint receives `sessionId`, `userId`, and `companyKey` for contextual AI responses.
 - **Smart Rendering System**: Modular `message-renderer.js` supports various content types:
-    - Text renderer with markdown, URL formatting, and XSS protection.
+    - Text renderer with full Markdown support (Gemini-style formatting):
+      - Headers (H1-H4) with proper sizing hierarchy and spacing
+      - Bullet lists (- or *) and numbered lists (1. 2. 3.)
+      - Horizontal rules (---) as visual separators
+      - Blockquotes (>) with styled left border
+      - Inline code (`code`) with monospace styling
+      - Bold (**text**) and italic (*text*) formatting
+      - URL auto-linking with XSS protection
+      - Professional paragraph spacing and typography
     - Chart renderer using Chart.js 4.4.1 for bar, line, pie, and doughnut charts with white card design, title/subtitle header, clean data point markers, and multi-dataset support.
     - Table renderer with auto-column detection, white card design, light gray headers, automatic status indicators (colored dots for In Stock/Low Stock/Out of Stock), growth formatting (green positive/red negative), text truncation with expand/collapse for long content (>80 chars), image preview thumbnails for image URLs, and clickable links throughout.
     - Media gallery renderer with white card design, full-width images, centered captions, and elegant placeholder for broken images.
