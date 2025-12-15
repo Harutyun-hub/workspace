@@ -32,13 +32,7 @@ async function initSupabase() {
     }
     
     if (!supabaseClient) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                detectSessionInUrl: true,
-                persistSession: true,
-                autoRefreshToken: true
-            }
-        });
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client initialized');
     }
     

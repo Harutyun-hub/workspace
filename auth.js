@@ -9,62 +9,19 @@ async function initAuth() {
         return null;
     }
     
-    const hasOAuthCallback = window.location.hash && 
-        (window.location.hash.includes('access_token') || window.location.hash.includes('error'));
-    
-    let session = null;
-    
-    if (hasOAuthCallback) {
-        console.log('OAuth callback detected, waiting for session...');
-        session = await new Promise((resolve) => {
-            let subscription = null;
-            
-            const timeout = setTimeout(() => {
-                console.warn('OAuth callback timeout - no session received');
-                if (subscription) subscription.unsubscribe();
-                resolve(null);
-            }, 5000);
-            
-            const { data } = supabase.auth.onAuthStateChange((event, sess) => {
-                console.log('Auth state during callback:', event);
-                if (event === 'SIGNED_IN' && sess) {
-                    clearTimeout(timeout);
-                    data.subscription.unsubscribe();
-                    resolve(sess);
-                } else if (event === 'INITIAL_SESSION') {
-                    if (sess) {
-                        clearTimeout(timeout);
-                        data.subscription.unsubscribe();
-                        resolve(sess);
-                    }
-                }
-            });
-            subscription = data.subscription;
-        });
-        
-        if (session) {
-            const cleanUrl = window.location.pathname + window.location.search;
-            window.history.replaceState(null, '', cleanUrl);
-        }
-    } else {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-            console.error('Error getting session:', error);
-        }
-        session = data?.session;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
     
     if (session) {
         currentUser = session.user;
         await ensureUserExists(session.user);
     }
     
-    supabase.auth.onAuthStateChange(async (event, sess) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('Auth state changed:', event);
         
-        if (event === 'SIGNED_IN' && sess) {
-            currentUser = sess.user;
-            await ensureUserExists(sess.user);
+        if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            await ensureUserExists(session.user);
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
         }
