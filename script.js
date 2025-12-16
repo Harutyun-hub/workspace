@@ -2,6 +2,45 @@ let currentConversationId = null;
 let currentSessionId = null;
 let isInitialized = false;
 let chatDropdownListenerAttached = false;
+let isLoadingConversation = false;
+let pendingBackgroundTasks = 0;
+
+function trackBackgroundTask(promise) {
+    pendingBackgroundTasks++;
+    updateBeforeUnloadHandler();
+    return promise.finally(() => {
+        pendingBackgroundTasks--;
+        updateBeforeUnloadHandler();
+    });
+}
+
+function updateBeforeUnloadHandler() {
+    if (pendingBackgroundTasks > 0) {
+        window.onbeforeunload = (e) => {
+            const message = 'Work is still being saved in the background. Are you sure you want to leave?';
+            e.returnValue = message;
+            return message;
+        };
+    } else {
+        window.onbeforeunload = null;
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const debouncedLoadConversation = debounce((conversationId) => {
+    loadConversation(conversationId);
+}, 300);
 
 function closeAllChatDropdowns(e) {
     if (e && (e.target.closest('.chat-item-menu-btn') || e.target.closest('.chat-item-dropdown'))) {
@@ -37,15 +76,18 @@ function getOrCreateSessionId() {
     return currentSessionId;
 }
 
-async function saveMessage(role, content) {
+async function saveMessage(role, content, conversationId = null, userId = null) {
     const user = getCurrentUser();
-    if (!user || !currentConversationId) {
+    const convId = conversationId || currentConversationId;
+    const uId = userId || (user ? user.id : null);
+    
+    if (!uId || !convId) {
         console.error('No user or conversation');
         return;
     }
     
     try {
-        await saveMessageToSupabase(currentConversationId, user.id, role, content);
+        await saveMessageToSupabase(convId, uId, role, content);
     } catch (error) {
         console.error('Failed to save message:', error);
     }
@@ -450,11 +492,16 @@ async function handleSendMessage() {
         const userMessage = message;
         input.value = '';
         
+        const convIdAtSend = currentConversationId;
+        const userIdAtSend = user.id;
+        
         addMessageToUI('user', userMessage);
         
-        saveMessage('user', userMessage).catch(error => {
-            console.error('Failed to save user message:', error);
-        });
+        trackBackgroundTask(
+            saveMessage('user', userMessage, convIdAtSend, userIdAtSend).catch(error => {
+                console.error('Failed to save user message:', error);
+            })
+        );
         
         const typingMessage = addMessageToUI('ai', '', true);
         
@@ -465,32 +512,31 @@ async function handleSendMessage() {
             typingMessage.remove();
             addMessageToUI('ai', aiResponse, false, true);
             
-            const convIdAtSend = currentConversationId;
             const titleForConv = userMessage.length > 50 ? userMessage.substring(0, 50) + '...' : userMessage;
             
-            saveMessage('ai', aiResponse)
-                .then(() => {
-                    if (convIdAtSend !== currentConversationId) return;
-                    
-                    return getMessageCount(convIdAtSend);
-                })
-                .then(messageCount => {
-                    if (!messageCount || convIdAtSend !== currentConversationId) return;
-                    
-                    if (messageCount === 2) {
-                        updateConversationTitle(convIdAtSend, titleForConv)
-                            .then(() => {
-                                const updated = updateSidebarTitleLocally(convIdAtSend, titleForConv);
-                                if (!updated) {
-                                    loadConversationHistory().catch(() => {});
-                                }
-                            })
-                            .catch(() => {});
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to save AI response:', error);
-                });
+            trackBackgroundTask(
+                saveMessage('ai', aiResponse, convIdAtSend, userIdAtSend)
+                    .then(() => {
+                        return getMessageCount(convIdAtSend);
+                    })
+                    .then(messageCount => {
+                        if (!messageCount) return;
+                        
+                        if (messageCount === 2) {
+                            updateConversationTitle(convIdAtSend, titleForConv)
+                                .then(() => {
+                                    const updated = updateSidebarTitleLocally(convIdAtSend, titleForConv);
+                                    if (!updated) {
+                                        loadConversationHistory().catch(() => {});
+                                    }
+                                })
+                                .catch(() => {});
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Failed to save AI response:', error);
+                    })
+            );
             
         } catch (error) {
             typingMessage.remove();
@@ -530,16 +576,32 @@ async function createNewConversation() {
     }
 }
 
+let lastSuccessfulConversationId = null;
+
 async function loadConversation(conversationId) {
+    if (isLoadingConversation) {
+        console.log('Already loading a conversation, skipping...');
+        return;
+    }
+    
+    if (conversationId === lastSuccessfulConversationId) {
+        console.log('Same conversation already loaded successfully, skipping...');
+        return;
+    }
+    
+    isLoadingConversation = true;
     const messagesContainer = document.getElementById('messages');
+    const previousConversationId = currentConversationId;
     
     try {
         hideWelcomeMessage();
         messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="attached_assets/nundu_ai_logo_1765627158270.png" alt="Loading"></div></div>';
         
-        currentConversationId = conversationId;
         const conversation = await getConversation(conversationId);
-        currentSessionId = conversation.session_id || generateUUID();
+        const loadedSessionId = conversation.session_id || generateUUID();
+        
+        currentConversationId = conversationId;
+        currentSessionId = loadedSessionId;
         
         messagesContainer.innerHTML = '';
         
@@ -554,10 +616,15 @@ async function loadConversation(conversationId) {
             });
         }
         
+        lastSuccessfulConversationId = conversationId;
+        
     } catch (error) {
         console.error('Error loading conversation:', error);
-        messagesContainer.innerHTML = '<div class="error-message">Failed to load conversation. Please try again.</div>';
+        messagesContainer.innerHTML = '<div class="error-message">Failed to load conversation. Click to try again.</div>';
         showToast('Failed to load conversation', 'error');
+        currentConversationId = previousConversationId;
+    } finally {
+        isLoadingConversation = false;
     }
 }
 
@@ -589,9 +656,10 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
-                loadConversation(conv.id);
+                if (isLoadingConversation) return;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
+                debouncedLoadConversation(conv.id);
             });
             
             const menuBtn = document.createElement('button');
