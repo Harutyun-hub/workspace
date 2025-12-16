@@ -67,6 +67,13 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - Supports JSON envelope responses for dynamic content.
     - Fully responsive design with optimized mobile/tablet layouts.
 - **Event Handling**: Robust event listener management using named functions to prevent duplicates and ensure consistency.
+- **Performance Optimizations**:
+    - 300ms debouncing on dashboard and intelligence filter changes to reduce redundant database queries
+    - Single conversation fetch during chat initialization (eliminated duplicate calls)
+    - Local DOM manipulation for sidebar title updates with fallback reload
+    - Non-blocking asynchronous timestamp updates
+    - Parallelized post-response database operations with conversation ID guards to prevent race conditions
+    - Production-clean codebase with debug logging removed (error logging retained)
 - **Server**: Python HTTP server providing a `/api/config` endpoint for secure credential delivery (Supabase anon key).
 - **Competitive Intelligence Suite**: `dashboard.html` with `intelligence.js` and `intelligence.css` for 4-pillar competitive analysis:
   - Data loading functions use `getCompanyIdsFromFilters()` helper for client-vs-competitor comparison
