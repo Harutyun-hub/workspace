@@ -46,10 +46,18 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - n8n Redis for AI conversation context and memory, using UUID v4 session IDs.
 - **Company-Based Filtering**: Canonical company identification system:
     - The `companies.company_key` field serves as the single source of truth for company identity.
+    - The `companies.logo_url` field stores company logos displayed across the interface.
     - Backend n8n scraper uses `upsert_snapshot_bundle` RPC which maps `p_handle` (lowercased) to company_key and populates company_id across all analytics tables.
     - Frontend queries join analytics tables with companies via inner join and filter by `companies.company_key`.
     - Dashboard and chat interface both feature company selectors populated from the companies table.
     - AI requests include `companyKey` parameter to provide company-specific context.
+- **Company Logo Display**: Unified logo rendering across the application:
+    - Data tables show Company column with 20px rounded logos alongside company names.
+    - Competitor cards display 36px logos in headers with rounded corners.
+    - Ad galleries show 24px logos in brand sections.
+    - Chat message tables detect company columns and render logos automatically.
+    - Graceful fallback to blue gradient initials when logo_url is missing or fails to load.
+    - Map-based lookup system in chat for efficient company-logo matching by both key and name.
 - **AI Integration**: n8n webhook endpoint receives `sessionId`, `userId`, and `companyKey` for contextual AI responses.
 - **Smart Rendering System**: Modular `message-renderer.js` supports various content types:
     - Text renderer with full Markdown support (Gemini-style formatting):
