@@ -267,7 +267,7 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
     if (role === 'user') {
         avatar.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     } else {
-        avatar.innerHTML = `<img src="attached_assets/nimbus_logo_final__1765962606791.png" alt="Nimbus AI" class="message-avatar-logo">`;
+        avatar.innerHTML = `<img src="attached_assets/nimbus_logo_final_1_1765978635428.png" alt="Nimbus AI" class="message-avatar-logo">`;
     }
     
     const contentDiv = document.createElement('div');
@@ -595,7 +595,7 @@ async function loadConversation(conversationId) {
     
     try {
         hideWelcomeMessage();
-        messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="attached_assets/nimbus_logo_final__1765962606791.png" alt="Loading"></div></div>';
+        messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="attached_assets/nimbus_logo_final_1_1765978635428.png" alt="Loading"></div></div>';
         
         const conversation = await getConversation(conversationId);
         const loadedSessionId = conversation.session_id || generateUUID();
