@@ -41,7 +41,7 @@ function showLoadingOverlay(message = 'Loading...') {
         overlay.innerHTML = `
             <div style="text-align: center;">
                 <div class="loading-spinner">
-                    <img src="attached_assets/nundu_ai_logo_1765627158270.png" alt="Loading">
+                    <img src="attached_assets/nimbus_logo_final__1765962606791.png" alt="Loading">
                 </div>
                 <p style="margin-top: 16px; color: #5f6368; font-size: 14px;">${message}</p>
             </div>
