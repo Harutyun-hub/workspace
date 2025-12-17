@@ -156,7 +156,7 @@ async function populateCompanyFilters() {
     try {
         const { data, error } = await supabase
             .from('companies')
-            .select('id, company_key, name')
+            .select('id, company_key, name, logo_url')
             .eq('is_active', true)
             .order('name', { ascending: true });
         
@@ -177,6 +177,7 @@ async function populateCompanyFilters() {
                         const option = document.createElement('option');
                         option.value = company.company_key;
                         option.textContent = company.name || company.company_key;
+                        option.dataset.logoUrl = company.logo_url || '';
                         filter.appendChild(option);
                     });
                 }
@@ -186,6 +187,25 @@ async function populateCompanyFilters() {
     } catch (error) {
         console.error('Error populating company filters:', error);
     }
+}
+
+function getCompanyById(companyId) {
+    return allData.companies.find(c => c.id === companyId) || null;
+}
+
+function renderCompanyWithLogo(name, logoUrl, size = 20) {
+    const displayName = escapeHtml(name || 'Unknown');
+    if (logoUrl) {
+        return `<div class="company-with-logo">
+            <img src="${escapeHtml(logoUrl)}" alt="${displayName}" class="company-logo" style="width: ${size}px; height: ${size}px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="company-logo-fallback" style="display: none; width: ${size}px; height: ${size}px;">${displayName.charAt(0).toUpperCase()}</div>
+            <span class="company-name">${displayName}</span>
+        </div>`;
+    }
+    return `<div class="company-with-logo">
+        <div class="company-logo-fallback" style="width: ${size}px; height: ${size}px;">${displayName.charAt(0).toUpperCase()}</div>
+        <span class="company-name">${displayName}</span>
+    </div>`;
 }
 
 function getFilters() {
@@ -507,6 +527,7 @@ function updateCompetitorCards() {
     allData.companies.forEach(company => {
         competitorData[company.id] = {
             name: company.name || company.company_key,
+            logo_url: company.logo_url || null,
             ads: 0,
             posts: 0,
             engagement: 0
@@ -552,7 +573,11 @@ function updateCompetitorCards() {
     container.innerHTML = sortedCompetitors.map(comp => `
         <div class="competitor-card">
             <div class="competitor-card-header">
-                <div class="competitor-avatar">${comp.name.charAt(0).toUpperCase()}</div>
+                ${comp.logo_url ? 
+                    `<img src="${escapeHtml(comp.logo_url)}" alt="${escapeHtml(comp.name)}" class="competitor-avatar-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="competitor-avatar" style="display: none;">${comp.name.charAt(0).toUpperCase()}</div>` :
+                    `<div class="competitor-avatar">${comp.name.charAt(0).toUpperCase()}</div>`
+                }
                 <span class="competitor-name">${escapeHtml(comp.name)}</span>
             </div>
             <div class="competitor-stats">
@@ -1177,7 +1202,16 @@ function updateFacebookGallery() {
                         <span>${ad.start_date_string ? formatDate(ad.start_date_string) : 'N/A'} - ${ad.end_date_string ? formatDate(ad.end_date_string) : 'Active'}</span>
                     </div>
                     <div class="ad-brand">
-                        <div class="ad-brand-logo">${(ad.page_name || 'A').charAt(0).toUpperCase()}</div>
+                        ${(() => {
+                            const company = allData.companies.find(c => c.id === ad.company_id);
+                            const logoUrl = company?.logo_url;
+                            const companyName = company?.name || ad.page_name || 'Unknown';
+                            if (logoUrl) {
+                                return `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" class="ad-brand-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="ad-brand-logo" style="display: none;">${companyName.charAt(0).toUpperCase()}</div>`;
+                            }
+                            return `<div class="ad-brand-logo">${companyName.charAt(0).toUpperCase()}</div>`;
+                        })()}
                         <span class="ad-brand-name">${escapeHtml(ad.page_name || 'Unknown')}</span>
                         ${ad.ad_link_url ? `<a href="${escapeHtml(ad.ad_link_url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
                     </div>
@@ -1231,7 +1265,11 @@ function updateGoogleGallery() {
                         <span>${ad.first_shown ? formatDate(ad.first_shown) : 'N/A'} - ${ad.last_shown ? formatDate(ad.last_shown) : 'Active'}</span>
                     </div>
                     <div class="ad-brand">
-                        <div class="ad-brand-logo">${companyName.charAt(0).toUpperCase()}</div>
+                        ${company?.logo_url ? 
+                            `<img src="${escapeHtml(company.logo_url)}" alt="${escapeHtml(companyName)}" class="ad-brand-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="ad-brand-logo" style="display: none;">${companyName.charAt(0).toUpperCase()}</div>` :
+                            `<div class="ad-brand-logo">${companyName.charAt(0).toUpperCase()}</div>`
+                        }
                         <span class="ad-brand-name">${escapeHtml(companyName)}</span>
                         ${ad.url ? `<a href="${escapeHtml(ad.url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
                     </div>

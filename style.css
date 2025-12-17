@@ -1917,3 +1917,92 @@ button:disabled {
         font-size: 12px;
     }
 }
+
+.company-with-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.company-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: #f3f4f6;
+}
+
+.company-logo-fallback {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.company-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.table-company-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-company-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: #f3f4f6;
+}
+
+.table-company-fallback {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.table-company-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.competitor-avatar-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: #f3f4f6;
+}
+
+.ad-brand-logo-img {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    object-fit: contain;
+    flex-shrink: 0;
+    background: #f3f4f6;
+}

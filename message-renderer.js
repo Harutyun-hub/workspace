@@ -319,6 +319,11 @@ function renderTable(envelope) {
         return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
     
+    function isCompanyColumn(colName) {
+        const companyKeywords = ['company', 'brand', 'advertiser', 'page_name', 'competitor'];
+        return companyKeywords.some(k => colName.toLowerCase().includes(k));
+    }
+    
     function isStatusColumn(colName) {
         const statusKeywords = ['status', 'state', 'availability', 'stock'];
         return statusKeywords.some(k => colName.toLowerCase().includes(k));
@@ -327,6 +332,30 @@ function renderTable(envelope) {
     function isGrowthColumn(colName) {
         const growthKeywords = ['growth', 'change', 'diff', 'delta', 'percent'];
         return growthKeywords.some(k => colName.toLowerCase().includes(k));
+    }
+    
+    function getCompanyLogoUrl(companyName) {
+        if (!companyName || typeof window.getChatCompanyLogo !== 'function') return null;
+        return window.getChatCompanyLogo(companyName);
+    }
+    
+    function renderCompanyCell(value) {
+        if (!value) return '';
+        const companyName = String(value).trim();
+        const logoUrl = getCompanyLogoUrl(companyName);
+        const displayName = escapeHtml(companyName);
+        
+        if (logoUrl) {
+            return `<div class="table-company-cell">
+                <img src="${escapeHtml(logoUrl)}" alt="${displayName}" class="table-company-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="table-company-fallback" style="display: none;">${displayName.charAt(0).toUpperCase()}</div>
+                <span class="table-company-name">${displayName}</span>
+            </div>`;
+        }
+        return `<div class="table-company-cell">
+            <div class="table-company-fallback">${displayName.charAt(0).toUpperCase()}</div>
+            <span class="table-company-name">${displayName}</span>
+        </div>`;
     }
     
     function getStatusInfo(value) {
@@ -382,6 +411,10 @@ function renderTable(envelope) {
         if (value === undefined || value === null) return '';
         
         const strValue = String(value).trim();
+        
+        if (isCompanyColumn(colName)) {
+            return renderCompanyCell(value);
+        }
         
         if (isStatusColumn(colName)) {
             const status = getStatusInfo(value);

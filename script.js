@@ -845,6 +845,9 @@ async function handleNewChatClick(e) {
     }
 }
 
+let chatCompaniesData = [];
+const chatCompanyLogoMap = new Map();
+
 async function populateChatCompanyFilter() {
     const companyFilter = document.getElementById('chatCompanyFilter');
     
@@ -855,13 +858,27 @@ async function populateChatCompanyFilter() {
         
         const { data, error } = await supabase
             .from('companies')
-            .select('company_key')
+            .select('company_key, name, logo_url')
             .order('company_key', { ascending: true });
         
         if (error) {
             console.error('Error loading companies for chat:', error);
             return;
         }
+        
+        chatCompaniesData = data || [];
+        
+        chatCompanyLogoMap.clear();
+        chatCompaniesData.forEach(company => {
+            if (company.logo_url) {
+                if (company.company_key) {
+                    chatCompanyLogoMap.set(company.company_key.toLowerCase(), company.logo_url);
+                }
+                if (company.name) {
+                    chatCompanyLogoMap.set(company.name.toLowerCase(), company.logo_url);
+                }
+            }
+        });
         
         const currentValue = companyFilter.value;
         companyFilter.innerHTML = '<option value="">All Companies</option>';
@@ -871,7 +888,8 @@ async function populateChatCompanyFilter() {
                 if (company.company_key) {
                     const option = document.createElement('option');
                     option.value = company.company_key;
-                    option.textContent = company.company_key;
+                    option.textContent = company.name || company.company_key;
+                    option.dataset.logoUrl = company.logo_url || '';
                     companyFilter.appendChild(option);
                 }
             });
@@ -885,6 +903,14 @@ async function populateChatCompanyFilter() {
         console.error('Error populating chat company filter:', error);
     }
 }
+
+function getChatCompanyLogo(companyIdentifier) {
+    if (!companyIdentifier) return null;
+    const normalizedKey = String(companyIdentifier).toLowerCase().trim();
+    return chatCompanyLogoMap.get(normalizedKey) || null;
+}
+
+window.getChatCompanyLogo = getChatCompanyLogo;
 
 async function initializeChat() {
     if (isInitialized) {

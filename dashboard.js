@@ -5,7 +5,6 @@ const tableConfigs = {
     facebook: {
         tableName: 'facebook_ads',
         columns: [
-            { key: 'page_name', label: 'Page Name' },
             { key: 'publisher_platform', label: 'Platform' },
             { key: 'ad_text', label: 'Ad Text' },
             { key: 'url', label: 'URL', type: 'link' },
@@ -16,12 +15,12 @@ const tableConfigs = {
             { key: 'end_date_string', label: 'End Date' }
         ],
         dateField: 'start_date_string',
-        companyField: 'page_name'
+        companyField: 'page_name',
+        companyColumnLabel: 'Company'
     },
     google: {
         tableName: 'google_ads',
         columns: [
-            { key: 'handle', label: 'Handle' },
             { key: 'advertiser_id', label: 'Advertiser ID' },
             { key: 'url', label: 'URL', type: 'link' },
             { key: 'format', label: 'Format' },
@@ -30,12 +29,12 @@ const tableConfigs = {
             { key: 'last_show', label: 'Last Show' }
         ],
         dateField: 'first_show',
-        companyField: 'handle'
+        companyField: 'handle',
+        companyColumnLabel: 'Company'
     },
     instagram: {
         tableName: 'instagram_posts',
         columns: [
-            { key: 'username', label: 'Username' },
             { key: 'text', label: 'Text' },
             { key: 'like_count', label: 'Likes' },
             { key: 'comment_count', label: 'Comments' },
@@ -43,7 +42,8 @@ const tableConfigs = {
             { key: 'url', label: 'URL', type: 'link' }
         ],
         dateField: 'created_at',
-        companyField: 'username'
+        companyField: 'username',
+        companyColumnLabel: 'Company'
     }
 };
 
@@ -172,12 +172,12 @@ async function loadFacebookAds(filters) {
         if (filters.company) {
             query = supabase
                 .from('facebook_ads')
-                .select('*, companies!inner(company_key)')
+                .select('*, companies!inner(company_key, name, logo_url)')
                 .eq('companies.company_key', filters.company);
         } else {
             query = supabase
                 .from('facebook_ads')
-                .select('*');
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
@@ -216,12 +216,12 @@ async function loadGoogleAds(filters) {
         if (filters.company) {
             query = supabase
                 .from('google_ads')
-                .select('*, companies!inner(company_key)')
+                .select('*, companies!inner(company_key, name, logo_url)')
                 .eq('companies.company_key', filters.company);
         } else {
             query = supabase
                 .from('google_ads')
-                .select('*');
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
@@ -261,12 +261,12 @@ async function loadInstagramPosts(filters) {
         if (filters.company) {
             query = supabase
                 .from('instagram_posts')
-                .select('*, companies!inner(company_key)')
+                .select('*, companies!inner(company_key, name, logo_url)')
                 .eq('companies.company_key', filters.company);
         } else {
             query = supabase
                 .from('instagram_posts')
-                .select('*');
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
@@ -295,12 +295,29 @@ async function loadInstagramPosts(filters) {
     }
 }
 
+function updateTableHeaders(source) {
+    const config = tableConfigs[source];
+    const thead = document.getElementById(`${source}TableHead`);
+    
+    if (!thead || !config) return;
+    
+    const companyHeader = `<th>${config.companyColumnLabel || 'Company'}</th>`;
+    const columnHeaders = config.columns
+        .filter(col => col.key !== config.companyField)
+        .map(col => `<th>${escapeHtml(col.label)}</th>`)
+        .join('');
+    
+    thead.innerHTML = `<tr>${companyHeader}${columnHeaders}</tr>`;
+}
+
 function updateTableUI(source, data) {
     const config = tableConfigs[source];
     const tbody = document.getElementById(`${source}TableBody`);
     const countEl = document.getElementById(`${source}Count`);
     
     if (!tbody || !config) return;
+    
+    updateTableHeaders(source);
     
     const itemLabel = source === 'instagram' ? 'posts' : 'ads';
     if (countEl) {
@@ -310,14 +327,24 @@ function updateTableUI(source, data) {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr class="empty-row">
-                <td colspan="${config.columns.length}">No data available</td>
+                <td colspan="${config.columns.length + 1}">No data available</td>
             </tr>
         `;
         return;
     }
     
     tbody.innerHTML = data.map(row => {
+        const companyData = row.companies;
+        const companyName = companyData?.name || companyData?.company_key || row[config.companyField] || 'Unknown';
+        const logoUrl = companyData?.logo_url || null;
+        
+        const companyCell = `<td>${renderCompanyWithLogo(companyName, logoUrl, 20)}</td>`;
+        
         const cells = config.columns.map(col => {
+            if (col.key === config.companyField) {
+                return '';
+            }
+            
             const value = row[col.key];
             
             if (value === null || value === undefined) {
@@ -332,9 +359,9 @@ function updateTableUI(source, data) {
             }
             
             return `<td title="${escapeHtml(String(value))}">${escapeHtml(String(value))}</td>`;
-        }).join('');
+        }).filter(cell => cell !== '').join('');
         
-        return `<tr>${cells}</tr>`;
+        return `<tr>${companyCell}${cells}</tr>`;
     }).join('');
 }
 
@@ -485,6 +512,8 @@ function updateInstagramChart(data) {
     }
 }
 
+let dashboardCompaniesData = [];
+
 async function populateCompanyFilter() {
     const companyFilter = document.getElementById('companyFilter');
     
@@ -493,13 +522,15 @@ async function populateCompanyFilter() {
     try {
         const { data, error } = await supabase
             .from('companies')
-            .select('company_key')
+            .select('company_key, name, logo_url')
             .order('company_key', { ascending: true });
         
         if (error) {
             console.error('Error loading companies:', error);
             return;
         }
+        
+        dashboardCompaniesData = data || [];
         
         const currentValue = companyFilter.value;
         companyFilter.innerHTML = '<option value="">All Companies</option>';
@@ -509,7 +540,8 @@ async function populateCompanyFilter() {
                 if (company.company_key) {
                     const option = document.createElement('option');
                     option.value = company.company_key;
-                    option.textContent = company.company_key;
+                    option.textContent = company.name || company.company_key;
+                    option.dataset.logoUrl = company.logo_url || '';
                     companyFilter.appendChild(option);
                 }
             });
@@ -522,6 +554,26 @@ async function populateCompanyFilter() {
     } catch (error) {
         console.error('Error populating company filter:', error);
     }
+}
+
+function getCompanyLogo(companyKey) {
+    const company = dashboardCompaniesData.find(c => c.company_key === companyKey);
+    return company?.logo_url || null;
+}
+
+function renderCompanyWithLogo(name, logoUrl, size = 20) {
+    const displayName = escapeHtml(name || 'Unknown');
+    if (logoUrl) {
+        return `<div class="company-with-logo">
+            <img src="${escapeHtml(logoUrl)}" alt="${displayName}" class="company-logo" style="width: ${size}px; height: ${size}px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="company-logo-fallback" style="display: none; width: ${size}px; height: ${size}px;">${displayName.charAt(0).toUpperCase()}</div>
+            <span class="company-name">${displayName}</span>
+        </div>`;
+    }
+    return `<div class="company-with-logo">
+        <div class="company-logo-fallback" style="width: ${size}px; height: ${size}px;">${displayName.charAt(0).toUpperCase()}</div>
+        <span class="company-name">${displayName}</span>
+    </div>`;
 }
 
 function escapeHtml(text) {
