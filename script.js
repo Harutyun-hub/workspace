@@ -5,6 +5,8 @@ let chatDropdownListenerAttached = false;
 let isLoadingConversation = false;
 let pendingBackgroundTasks = 0;
 
+const NIMBUS_AVATAR_BASE64 = 'data:image/webp;base64,UklGRmACAABXRUJQVlA4WAoAAAAQAAAALwAAJwAAQUxQSDoBAAABkEPbtqk957dt27Zt26j+zlaH1oxt2zY727ad7PCNcU9YRsQE0F+7WVGKAauQg+9edzGSLbuGs3u3KbHR6H4BXDkxzMZ60Wec7AyyVSKmYYeBza7EVq7yBt6NGhJbzd6XeFCnSGytF3/GqVTiG3oY2OxObOUqruPduAHxVKyK1+55iYcNSsQ0+cW93R9xLoO4au8A8GmbF3G1nvwRwC1v4qhp5ewTvQU/bGGgUbbn2t3Hrz5/9+FkqTDlzC3v8POtRcYk2nrxa/z8zUoTEm6+CVJna5Bw03WQ+iaNhGsvgeTjesIU+iC9h4TXvJV20ElY9n1I/TjPikR7Lrwr5XGbKomWjVz98WcfDqaReI3Bz/jx6x2VesTQZDOAl8CVackaxDL/2qWby1ZvrraXIZ5yEQHBvi4BavR/GFZQOCAAAQAAcAYAnQEqMAAoAD5RHo1FI6GhFVquqDgFBLSG2ALMIVvw3q4ix6tC3yb1G3kmqTCBWfEJfEPMfP7l/ltgAP7+R4Y//QKXxVvmENlWTE14vj4/+4WA0j9JQw8Phyu5lEu2U/gIak9ASN1auVLqjuiBNcXlWcLCOpzk4Nw2/xk+MwUSnUsWzt/jdgMGqd/c0M6FI5JETm4PMDBqTCPnbdkAkL9XsqdJ6gHS0BKSJCPq6hDSI2q9s7ETDxIXpHX2F8El35ZOql03xpwklQ3bnw7wD/y9RHnkx5tawCOe90K4b3Kj/+aILfz79/JAKfxTqmXg42hLSZ5tM4vC9JZPtwAAAA==';
+
 function trackBackgroundTask(promise) {
     pendingBackgroundTasks++;
     updateBeforeUnloadHandler();
@@ -267,7 +269,7 @@ function addMessageToUI(role, content, isTyping = false, enableTypingEffect = fa
     if (role === 'user') {
         avatar.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     } else {
-        avatar.innerHTML = `<img src="attached_assets/nimbus_logo_final_1_1765978635428.png" alt="Nimbus AI" class="message-avatar-logo">`;
+        avatar.innerHTML = `<img src="${NIMBUS_AVATAR_BASE64}" alt="Nimbus AI" class="message-avatar-logo">`;
     }
     
     const contentDiv = document.createElement('div');
@@ -595,7 +597,7 @@ async function loadConversation(conversationId) {
     
     try {
         hideWelcomeMessage();
-        messagesContainer.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="attached_assets/nimbus_logo_final_1_1765978635428.png" alt="Loading"></div></div>';
+        messagesContainer.innerHTML = `<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="${NIMBUS_AVATAR_BASE64}" alt="Loading"></div></div>`;
         
         const conversation = await getConversation(conversationId);
         const loadedSessionId = conversation.session_id || generateUUID();
