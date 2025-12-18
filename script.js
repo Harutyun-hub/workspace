@@ -899,7 +899,8 @@ async function handleNewChatClick(e) {
 }
 
 let chatCompaniesData = [];
-const chatCompanyLogoMap = new Map();
+const chatCanonicalLogoMap = new Map();
+const chatAliasMap = new Map();
 
 async function populateChatCompanyFilter() {
     const companyFilter = document.getElementById('chatCompanyFilter');
@@ -921,14 +922,33 @@ async function populateChatCompanyFilter() {
         
         chatCompaniesData = data || [];
         
-        chatCompanyLogoMap.clear();
+        chatCanonicalLogoMap.clear();
+        chatAliasMap.clear();
+        
         chatCompaniesData.forEach(company => {
             if (company.logo_url) {
-                if (company.company_key) {
-                    chatCompanyLogoMap.set(company.company_key.toLowerCase(), company.logo_url);
-                }
+                const canonicalKey = (company.company_key || company.name || '').toLowerCase().trim();
+                if (!canonicalKey) return;
+                
+                chatCanonicalLogoMap.set(canonicalKey, company.logo_url);
+                
                 if (company.name) {
-                    chatCompanyLogoMap.set(company.name.toLowerCase(), company.logo_url);
+                    const name = company.name.toLowerCase().trim();
+                    if (name !== canonicalKey) {
+                        addSafeAlias(name, canonicalKey, company.logo_url);
+                    }
+                }
+                
+                const keyWithoutDomain = canonicalKey.replace(/\.(ro|com|net|org|io|co|eu)$/i, '');
+                if (keyWithoutDomain !== canonicalKey) {
+                    addSafeAlias(keyWithoutDomain, canonicalKey, company.logo_url);
+                }
+                
+                if (company.name) {
+                    const nameWithoutDomain = company.name.toLowerCase().trim().replace(/\.(ro|com|net|org|io|co|eu)$/i, '');
+                    if (nameWithoutDomain !== company.name.toLowerCase().trim() && nameWithoutDomain !== canonicalKey) {
+                        addSafeAlias(nameWithoutDomain, canonicalKey, company.logo_url);
+                    }
                 }
             }
         });
@@ -957,10 +977,51 @@ async function populateChatCompanyFilter() {
     }
 }
 
+function addSafeAlias(alias, canonicalKey, logoUrl) {
+    if (!alias || alias.length < 2) return;
+    
+    if (chatCanonicalLogoMap.has(alias)) {
+        return;
+    }
+    
+    if (chatAliasMap.has(alias)) {
+        const existing = chatAliasMap.get(alias);
+        if (existing.canonicalKey !== canonicalKey) {
+            chatAliasMap.set(alias, { logoUrl: null, canonicalKey: null, collision: true });
+        }
+    } else {
+        chatAliasMap.set(alias, { logoUrl, canonicalKey, collision: false });
+    }
+}
+
 function getChatCompanyLogo(companyIdentifier) {
     if (!companyIdentifier) return null;
     const normalizedKey = String(companyIdentifier).toLowerCase().trim();
-    return chatCompanyLogoMap.get(normalizedKey) || null;
+    
+    if (chatCanonicalLogoMap.has(normalizedKey)) {
+        return chatCanonicalLogoMap.get(normalizedKey);
+    }
+    
+    const keyWithoutDomain = normalizedKey.replace(/\.(ro|com|net|org|io|co|eu)$/i, '');
+    if (keyWithoutDomain !== normalizedKey && chatCanonicalLogoMap.has(keyWithoutDomain)) {
+        return chatCanonicalLogoMap.get(keyWithoutDomain);
+    }
+    
+    if (chatAliasMap.has(normalizedKey)) {
+        const aliasEntry = chatAliasMap.get(normalizedKey);
+        if (!aliasEntry.collision && aliasEntry.logoUrl) {
+            return aliasEntry.logoUrl;
+        }
+    }
+    
+    if (keyWithoutDomain !== normalizedKey && chatAliasMap.has(keyWithoutDomain)) {
+        const aliasEntry = chatAliasMap.get(keyWithoutDomain);
+        if (!aliasEntry.collision && aliasEntry.logoUrl) {
+            return aliasEntry.logoUrl;
+        }
+    }
+    
+    return null;
 }
 
 window.getChatCompanyLogo = getChatCompanyLogo;
