@@ -57,7 +57,11 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - Ad galleries show 24px logos in brand sections.
     - Chat message tables detect company columns and render logos automatically.
     - Graceful fallback to blue gradient initials when logo_url is missing or fails to load.
-    - Map-based lookup system in chat for efficient company-logo matching by both key and name.
+    - Two-map lookup system with collision detection:
+      - `chatCanonicalLogoMap`: Maps canonical company_keys directly to logos
+      - `chatAliasMap`: Maps aliases (name variants, domain-stripped versions) with collision tracking
+      - Supports domain variations (.ro, .com, .net, .org, .io, .co, .eu)
+      - Collision-safe: aliases that map to multiple companies return null to prevent misattribution
 - **AI Integration**: n8n webhook endpoint receives `sessionId`, `userId`, and `companyKey` for contextual AI responses.
 - **Smart Rendering System**: Modular `message-renderer.js` supports various content types:
     - Text renderer with full Markdown support (Gemini-style formatting):
