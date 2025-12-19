@@ -23,6 +23,7 @@ async function createConversation(userId, title = null, sessionId = null) {
 
 async function getUserConversations(userId, limit = 50) {
     const supabase = getSupabase();
+    console.log('[DB] getUserConversations START:', userId, 'at', new Date().toISOString());
     
     const { data, error } = await supabase
         .from('conversations')
@@ -32,15 +33,17 @@ async function getUserConversations(userId, limit = 50) {
         .limit(limit);
     
     if (error) {
-        console.error('Error loading conversations:', error);
+        console.error('[DB] getUserConversations ERROR:', error, 'at', new Date().toISOString());
         throw error;
     }
     
+    console.log('[DB] getUserConversations END:', userId, 'count:', (data || []).length, 'at', new Date().toISOString());
     return data || [];
 }
 
 async function getConversation(conversationId) {
     const supabase = getSupabase();
+    console.log('[DB] getConversation START:', conversationId, 'at', new Date().toISOString());
     
     const { data, error } = await supabase
         .from('conversations')
@@ -49,10 +52,11 @@ async function getConversation(conversationId) {
         .single();
     
     if (error) {
-        console.error('Error loading conversation:', error);
+        console.error('[DB] getConversation ERROR:', error, 'at', new Date().toISOString());
         throw error;
     }
     
+    console.log('[DB] getConversation END:', conversationId, 'at', new Date().toISOString());
     return data;
 }
 
@@ -130,6 +134,7 @@ async function saveMessageToSupabase(conversationId, userId, role, content) {
 
 async function loadMessagesFromSupabase(conversationId) {
     const supabase = getSupabase();
+    console.log('[DB] loadMessagesFromSupabase START:', conversationId, 'at', new Date().toISOString());
     
     const { data, error } = await supabase
         .from('messages')
@@ -138,10 +143,11 @@ async function loadMessagesFromSupabase(conversationId) {
         .order('created_at', { ascending: true });
     
     if (error) {
-        console.error('Error loading messages:', error);
+        console.error('[DB] loadMessagesFromSupabase ERROR:', error, 'at', new Date().toISOString());
         throw error;
     }
     
+    console.log('[DB] loadMessagesFromSupabase END:', conversationId, 'count:', (data || []).length, 'at', new Date().toISOString());
     const messages = data || [];
     
     return messages.map(msg => {
