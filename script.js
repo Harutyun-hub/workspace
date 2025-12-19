@@ -1058,6 +1058,8 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
+                cancelConversationLoad();
+                isLoadingConversation = false;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
                 debouncedLoadConversation(conv.id);
