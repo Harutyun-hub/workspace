@@ -9,12 +9,132 @@ let pendingBackgroundTasks = 0;
 let currentTypingInterval = null;
 let currentLoadAbortController = null;
 let currentAIAbortController = null;
-const AI_FETCH_TIMEOUT_MS = 60000; // 60 second timeout for AI responses
-const INPUT_UNLOCK_TIMEOUT_MS = 65000; // Safety timeout to always unlock input
+const AI_FETCH_TIMEOUT_MS = 45000; // 45 second timeout for AI responses
+const INPUT_UNLOCK_TIMEOUT_MS = 60000; // Safety timeout - must be > AI timeout + typing timeout
+const TYPING_EFFECT_TIMEOUT_MS = 15000; // Max 15s for typing animation
 
-const SAVE_TIMEOUT_MS = 30000;
+const SAVE_TIMEOUT_MS = 15000; // Reduced from 30s
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
+
+// ============================================
+// CHAT STATE MACHINE - Enterprise Architecture
+// ============================================
+const ChatState = {
+    IDLE: 'IDLE',
+    SENDING: 'SENDING',
+    AWAITING_AI: 'AWAITING_AI',
+    RENDERING: 'RENDERING',
+    ERROR: 'ERROR'
+};
+
+const ChatStateMachine = {
+    currentState: ChatState.IDLE,
+    listeners: [],
+    stateHistory: [],
+    
+    setState(newState, reason = '') {
+        const previousState = this.currentState;
+        this.currentState = newState;
+        this.stateHistory.push({ 
+            from: previousState, 
+            to: newState, 
+            reason, 
+            timestamp: Date.now() 
+        });
+        
+        // Keep only last 20 state changes for debugging
+        if (this.stateHistory.length > 20) {
+            this.stateHistory.shift();
+        }
+        
+        console.log(`[ChatState] ${previousState} → ${newState}${reason ? ` (${reason})` : ''}`);
+        
+        // Notify all listeners
+        this.listeners.forEach(listener => {
+            try {
+                listener(newState, previousState);
+            } catch (err) {
+                console.error('[ChatState] Listener error:', err);
+            }
+        });
+        
+        // Auto-sync UI on every state change
+        this.syncUI();
+    },
+    
+    getState() {
+        return this.currentState;
+    },
+    
+    isIdle() {
+        return this.currentState === ChatState.IDLE;
+    },
+    
+    canSendMessage() {
+        return this.currentState === ChatState.IDLE;
+    },
+    
+    onStateChange(listener) {
+        this.listeners.push(listener);
+        return () => {
+            this.listeners = this.listeners.filter(l => l !== listener);
+        };
+    },
+    
+    syncUI() {
+        const input = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (!input || !sendBtn) return;
+        
+        const shouldBeEnabled = this.currentState === ChatState.IDLE;
+        
+        input.disabled = !shouldBeEnabled;
+        sendBtn.disabled = !shouldBeEnabled;
+        
+        if (shouldBeEnabled) {
+            input.focus();
+        }
+        
+        console.log(`[ChatState] UI sync: input/button ${shouldBeEnabled ? 'ENABLED' : 'DISABLED'}`);
+    },
+    
+    forceReset(reason = 'Force reset') {
+        console.warn(`[ChatState] Force resetting state: ${reason}`);
+        
+        // Cleanup all pending operations
+        cleanupTypingEffect();
+        cancelAIRequest();
+        
+        // Reset to IDLE
+        this.setState(ChatState.IDLE, reason);
+    },
+    
+    getDebugInfo() {
+        return {
+            currentState: this.currentState,
+            recentHistory: this.stateHistory.slice(-5),
+            pendingBackgroundTasks
+        };
+    }
+};
+
+// Global safety net - if stuck in non-IDLE state for too long, force reset
+setInterval(() => {
+    if (ChatStateMachine.currentState !== ChatState.IDLE) {
+        const lastChange = ChatStateMachine.stateHistory[ChatStateMachine.stateHistory.length - 1];
+        if (lastChange && Date.now() - lastChange.timestamp > INPUT_UNLOCK_TIMEOUT_MS) {
+            ChatStateMachine.forceReset('Safety timeout - stuck in non-IDLE state');
+        }
+    }
+}, 5000);
+
+// Expose for debugging
+if (typeof window !== 'undefined') {
+    window.ChatStateMachine = ChatStateMachine;
+    window.ChatState = ChatState;
+}
 
 const NIMBUS_AVATAR_BASE64 = 'data:image/webp;base64,UklGRmACAABXRUJQVlA4WAoAAAAQAAAALwAAJwAAQUxQSDoBAAABkEPbtqk957dt27Zt26j+zlaH1oxt2zY727ad7PCNcU9YRsQE0F+7WVGKAauQg+9edzGSLbuGs3u3KbHR6H4BXDkxzMZ60Wec7AyyVSKmYYeBza7EVq7yBt6NGhJbzd6XeFCnSGytF3/GqVTiG3oY2OxObOUqruPduAHxVKyK1+55iYcNSsQ0+cW93R9xLoO4au8A8GmbF3G1nvwRwC1v4qhp5ewTvQU/bGGgUbbn2t3Hrz5/9+FkqTDlzC3v8POtRcYk2nrxa/z8zUoTEm6+CVJna5Bw03WQ+iaNhGsvgeTjesIU+iC9h4TXvJV20ElY9n1I/TjPikR7Lrwr5XGbKomWjVz98WcfDqaReI3Bz/jx6x2VesTQZDOAl8CVackaxDL/2qWby1ZvrraXIZ5yEQHBvi4BavR/GFZQOCAAAQAAcAYAnQEqMAAoAD5RHo1FI6GhFVquqDgFBLSG2ALMIVvw3q4ix6tC3yb1G3kmqTCBWfEJfEPMfP7l/ltgAP7+R4Y//QKXxVvmENlWTE14vj4/+4WA0j9JQw8Phyu5lEu2U/gIak9ASN1auVLqjuiBNcXlWcLCOpzk4Nw2/xk+MwUSnUsWzt/jdgMGqd/c0M6FI5JETm4PMDBqTCPnbdkAkL9XsqdJ6gHS0BKSJCPq6hDSI2q9s7ETDxIXpHX2F8El35ZOql03xpwklQ3bnw7wD/y9RHnkx5tawCOe90K4b3Kj/+aILfz79/JAKfxTqmXg42hLSZ5tM4vC9JZPtwAAAA==';
 
@@ -83,16 +203,13 @@ const debouncedLoadConversation = debounce((conversationId) => {
     loadConversation(conversationId);
 }, 300);
 
-// Page visibility change handler - unlock input when user returns to tab
+// Page visibility change handler - just sync UI, don't abort operations
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-        // When user returns to tab, ensure input is usable
-        const input = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        if (input && input.disabled && !isLoadingConversation) {
-            console.log('Visibility change - resetting input state');
-            forceUnlockInput();
-        }
+        // When user returns to tab, just log state and sync UI (don't force reset)
+        console.log('[Visibility] Tab visible, current state:', ChatStateMachine.getState());
+        // Re-sync UI in case it got out of sync
+        ChatStateMachine.syncUI();
     }
 });
 
@@ -137,26 +254,29 @@ function cancelAIRequest() {
     }
 }
 
-// Force unlock input (safety mechanism)
+// Force unlock input (safety mechanism) - now uses state machine
 function forceUnlockInput() {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    if (input) {
-        input.disabled = false;
-        input.focus();
-    }
-    if (sendBtn) {
-        sendBtn.disabled = false;
-    }
+    console.log('[ForceUnlock] Forcing input unlock via state machine');
+    ChatStateMachine.forceReset('Manual force unlock');
 }
 
 // Master cleanup function for logout/navigation
 function cleanupAllState() {
+    console.log('[Cleanup] Cleaning up all state');
     cleanupTypingEffect();
     cancelConversationLoad();
     cancelAIRequest();
     cleanupChatDropdowns();
-    forceUnlockInput();
+    
+    // Reset state machine to IDLE
+    if (ChatStateMachine.currentState !== ChatState.IDLE) {
+        ChatStateMachine.setState(ChatState.IDLE, 'Cleanup all state');
+    }
+    
+    // Reset background tasks counter to prevent memory leaks
+    pendingBackgroundTasks = 0;
+    updateBeforeUnloadHandler();
+    
     isLoadingConversation = false;
     isInitialized = false;
 }
@@ -450,6 +570,34 @@ function copyMessageText(contentDiv, copyBtn) {
 
 function showTypingEffect(content, contentDiv) {
     return new Promise((resolve) => {
+        let resolved = false;
+        let typingTimeout = null;
+        
+        const safeResolve = () => {
+            if (resolved) return;
+            resolved = true;
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+            cleanupTypingEffect();
+            console.log('[TypingEffect] Resolved');
+            resolve();
+        };
+        
+        // GUARANTEED RESOLUTION: Max 15 seconds for typing effect
+        typingTimeout = setTimeout(() => {
+            console.warn('[TypingEffect] Timeout - forcing completion');
+            // Show remaining content immediately
+            try {
+                const renderedContent = renderMessage(content);
+                contentDiv.innerHTML = renderedContent;
+            } catch (e) {
+                contentDiv.textContent = typeof content === 'string' ? content : JSON.stringify(content);
+            }
+            safeResolve();
+        }, TYPING_EFFECT_TIMEOUT_MS);
+        
         // Cleanup any existing typing effect first
         cleanupTypingEffect();
         
@@ -479,7 +627,7 @@ function showTypingEffect(content, contentDiv) {
             extractTextNodes(contentDiv);
             
             if (textNodes.length === 0) {
-                resolve();
+                safeResolve();
                 return;
             }
             
@@ -503,6 +651,12 @@ function showTypingEffect(content, contentDiv) {
             
             // Store interval globally for cleanup
             currentTypingInterval = setInterval(() => {
+                if (resolved) {
+                    clearInterval(currentTypingInterval);
+                    currentTypingInterval = null;
+                    return;
+                }
+                
                 try {
                     for (let item of elementsToAnimate) {
                         if (item.currentIndex < item.words.length) {
@@ -523,24 +677,20 @@ function showTypingEffect(content, contentDiv) {
                     }
                     
                     if (globalWordIndex >= totalWords) {
-                        clearInterval(currentTypingInterval);
-                        currentTypingInterval = null;
                         cursor.remove();
-                        resolve();
+                        safeResolve();
                     }
                 } catch (err) {
-                    console.error('Typing effect error:', err);
-                    clearInterval(currentTypingInterval);
-                    currentTypingInterval = null;
+                    console.error('[TypingEffect] Error:', err);
                     cursor.remove();
-                    resolve();
+                    safeResolve();
                 }
             }, 60);
         } catch (err) {
-            console.error('Failed to render message:', err);
+            console.error('[TypingEffect] Failed to render:', err);
             // Fallback: just show the content without animation
             contentDiv.textContent = typeof content === 'string' ? content : JSON.stringify(content);
-            resolve();
+            safeResolve();
         }
     });
 }
@@ -647,10 +797,15 @@ async function getAIResponse(userMessage, sessionId, userId) {
 
 async function handleSendMessage() {
     const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
     const message = input.value.trim();
     
     if (!message) return;
+    
+    // Check if we can send (state machine controls this)
+    if (!ChatStateMachine.canSendMessage()) {
+        console.warn('[SendMessage] Cannot send - chat not in IDLE state:', ChatStateMachine.getState());
+        return;
+    }
     
     const user = getCurrentUser();
     if (!user) {
@@ -658,14 +813,8 @@ async function handleSendMessage() {
         return;
     }
     
-    input.disabled = true;
-    sendBtn.disabled = true;
-    
-    // Safety timeout: always unlock input after max time
-    const safetyUnlockTimeout = setTimeout(() => {
-        console.warn('Safety timeout triggered - unlocking input');
-        forceUnlockInput();
-    }, INPUT_UNLOCK_TIMEOUT_MS);
+    // Transition to SENDING state (this disables input via state machine)
+    ChatStateMachine.setState(ChatState.SENDING, 'User sent message');
     
     try {
         if (!currentConversationId) {
@@ -683,13 +832,17 @@ async function handleSendMessage() {
         
         addMessageToUI('user', userMessage);
         
+        // Save user message (don't await, let it run in background with timeout)
         const userSavePromise = saveMessage('user', userMessage, convIdAtSend, userIdAtSend).catch(error => {
-            console.error('Failed to save user message:', error);
+            console.error('[SendMessage] Failed to save user message:', error);
             showToast('Failed to save message', 'error');
             return null;
         });
         
         const typingMessage = addMessageToUI('ai', '', true);
+        
+        // Transition to AWAITING_AI state
+        ChatStateMachine.setState(ChatState.AWAITING_AI, 'Waiting for AI response');
         
         try {
             const sessionId = getOrCreateSessionId();
@@ -697,31 +850,42 @@ async function handleSendMessage() {
             
             typingMessage.remove();
             
-            // Handle async typing effect - await its completion
+            // Transition to RENDERING state
+            ChatStateMachine.setState(ChatState.RENDERING, 'Rendering AI response');
+            
+            // Handle async typing effect - await its completion (now has guaranteed timeout)
             const aiMessageDiv = addMessageToUI('ai', aiResponse, false, true);
             
-            // Wait for typing effect to complete if it returns a promise
+            // Wait for typing effect to complete (guaranteed to resolve within 15s)
             if (aiMessageDiv && aiMessageDiv.typingPromise) {
                 await aiMessageDiv.typingPromise;
             }
             
             const titleForConv = userMessage.length > 50 ? userMessage.substring(0, 50) + '...' : userMessage;
             
+            // Save AI message (don't block on this)
             const aiSavePromise = saveMessage('ai', aiResponse, convIdAtSend, userIdAtSend).catch(error => {
-                console.error('Failed to save AI message:', error);
+                console.error('[SendMessage] Failed to save AI message:', error);
                 return null;
             });
             
-            // Wait for both messages to save before updating title
-            await Promise.all([userSavePromise, aiSavePromise]);
+            // Wait for saves with timeout (don't let this block forever)
+            await Promise.race([
+                Promise.all([userSavePromise, aiSavePromise]),
+                new Promise(resolve => setTimeout(resolve, 10000)) // Max 10s wait for saves
+            ]);
             
-            // Now message count will be accurate
-            updateConversationTitleIfNeeded(convIdAtSend, titleForConv);
+            // Update title in background (non-blocking)
+            updateConversationTitleIfNeeded(convIdAtSend, titleForConv).catch(err => {
+                console.warn('[SendMessage] Title update failed:', err);
+            });
             
         } catch (error) {
             typingMessage.remove();
             cleanupTypingEffect();
-            console.error('AI response error:', error);
+            console.error('[SendMessage] AI response error:', error);
+            
+            ChatStateMachine.setState(ChatState.ERROR, 'AI response failed');
             
             const errorMessage = "I'm sorry, I'm having trouble connecting right now. Please try again.";
             addMessageToUI('ai', errorMessage);
@@ -732,13 +896,11 @@ async function handleSendMessage() {
     } catch (error) {
         handleError(error, 'Send message');
         input.value = message;
+        ChatStateMachine.setState(ChatState.ERROR, 'Send message failed');
     } finally {
-        // Clear safety timeout
-        clearTimeout(safetyUnlockTimeout);
-        // Ensure input is always unlocked
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
+        // ALWAYS return to IDLE state - this guarantees input is unlocked
+        ChatStateMachine.setState(ChatState.IDLE, 'Message cycle complete');
+        console.log('[SendMessage] Cycle complete, state:', ChatStateMachine.getDebugInfo());
     }
 }
 
