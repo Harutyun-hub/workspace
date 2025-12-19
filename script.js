@@ -9,8 +9,8 @@ let pendingBackgroundTasks = 0;
 let currentTypingInterval = null;
 let currentLoadAbortController = null;
 let currentAIAbortController = null;
-const AI_FETCH_TIMEOUT_MS = 45000; // 45 second timeout for AI responses
-const INPUT_UNLOCK_TIMEOUT_MS = 60000; // Safety timeout - must be > AI timeout + typing timeout
+const AI_FETCH_TIMEOUT_MS = 300000; // 5 minute timeout for AI responses
+const INPUT_UNLOCK_TIMEOUT_MS = 330000; // Safety timeout (5.5 min) - must be > AI timeout + typing timeout
 const TYPING_EFFECT_TIMEOUT_MS = 15000; // Max 15s for typing animation
 
 const SAVE_TIMEOUT_MS = 15000; // Reduced from 30s
@@ -732,7 +732,7 @@ async function getAIResponse(userMessage, sessionId, userId) {
                 if (currentAIAbortController === localAbortController) {
                     localAbortController.abort();
                 }
-                reject(new Error('AI response timed out after 60 seconds'));
+                reject(new Error('AI response timed out after 5 minutes'));
             }, AI_FETCH_TIMEOUT_MS);
         });
         
