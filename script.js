@@ -944,7 +944,7 @@ async function loadConversation(conversationId) {
     
     // If already loading the same conversation, skip
     if (isLoadingConversation && conversationId === currentConversationId) {
-        console.log('Already loading this conversation, skipping...');
+        console.log('[LoadConv] Already loading this conversation, skipping...');
         return;
     }
     
@@ -952,7 +952,10 @@ async function loadConversation(conversationId) {
     currentLoadAbortController = new AbortController();
     currentLoadId++;
     const thisLoadId = currentLoadId;
+    const loadRequestId = `load_${thisLoadId}_${Date.now()}`;
     isLoadingConversation = true;
+    
+    console.log(`[LoadConv] [${loadRequestId}] START loading conversation:`, conversationId);
     
     const messagesContainer = document.getElementById('messages');
     const previousConversationId = currentConversationId;
@@ -976,7 +979,9 @@ async function loadConversation(conversationId) {
             throw new Error('Load cancelled');
         }
         
+        console.log(`[LoadConv] [${loadRequestId}] Calling getConversation...`);
         const conversation = await getConversation(conversationId);
+        console.log(`[LoadConv] [${loadRequestId}] getConversation returned successfully`);
         
         // Check if this load is still current after getting conversation
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
@@ -990,7 +995,9 @@ async function loadConversation(conversationId) {
         
         messagesContainer.innerHTML = '';
         
+        console.log(`[LoadConv] [${loadRequestId}] Calling loadMessages...`);
         const messages = await loadMessages();
+        console.log(`[LoadConv] [${loadRequestId}] loadMessages returned`, messages.length, 'messages');
         
         // Check if this load is still current after loading messages
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
@@ -1006,14 +1013,16 @@ async function loadConversation(conversationId) {
             });
         }
         
+        console.log(`[LoadConv] [${loadRequestId}] END - conversation loaded successfully`);
+        
     } catch (error) {
         if (error.message === 'Load cancelled') {
-            console.log('Conversation load was cancelled (load ID:', thisLoadId, ')');
+            console.log(`[LoadConv] [${loadRequestId}] Cancelled (load ID: ${thisLoadId})`);
             // Don't reset state here - a newer load may be in progress
             clearTimeout(loadTimeout);
             return;
         }
-        console.error('Error loading conversation:', error);
+        console.error(`[LoadConv] [${loadRequestId}] ERROR:`, error.message);
         // Only show error if this is still the current load
         if (thisLoadId === currentLoadId) {
             messagesContainer.innerHTML = '<div class="error-message">Failed to load conversation. Click to try again.</div>';

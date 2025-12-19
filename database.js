@@ -1,3 +1,22 @@
+let dbRequestCounter = 0;
+
+function generateRequestId() {
+    return `req_${++dbRequestCounter}_${Date.now()}`;
+}
+
+function withTimeout(promise, timeoutMs, requestId, operationName) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`[${requestId}] ${operationName} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+    });
+    
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+    });
+}
+
 async function createConversation(userId, title = null, sessionId = null) {
     const supabase = getSupabase();
     console.log('[DB] Creating conversation for user:', userId);
@@ -43,21 +62,41 @@ async function getUserConversations(userId, limit = 50) {
 
 async function getConversation(conversationId) {
     const supabase = getSupabase();
-    console.log('[DB] getConversation START:', conversationId, 'at', new Date().toISOString());
+    const requestId = generateRequestId();
+    const startTime = Date.now();
+    console.log(`[DB] [${requestId}] getConversation START:`, conversationId, 'at', new Date().toISOString());
     
-    const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('id', conversationId)
-        .single();
-    
-    if (error) {
-        console.error('[DB] getConversation ERROR:', error, 'at', new Date().toISOString());
-        throw error;
+    try {
+        const queryPromise = supabase
+            .from('conversations')
+            .select('*')
+            .eq('id', conversationId)
+            .single();
+        
+        const result = await withTimeout(queryPromise, 10000, requestId, 'getConversation');
+        const { data, error, status, statusText } = result;
+        const elapsed = Date.now() - startTime;
+        
+        console.log(`[DB] [${requestId}] getConversation RESPONSE:`, {
+            hasData: !!data,
+            error: error,
+            status: status,
+            statusText: statusText,
+            elapsedMs: elapsed
+        });
+        
+        if (error) {
+            console.error(`[DB] [${requestId}] getConversation ERROR:`, error, 'at', new Date().toISOString());
+            throw error;
+        }
+        
+        console.log(`[DB] [${requestId}] getConversation END:`, conversationId, 'elapsed:', elapsed + 'ms');
+        return data;
+    } catch (err) {
+        const elapsed = Date.now() - startTime;
+        console.error(`[DB] [${requestId}] getConversation EXCEPTION after ${elapsed}ms:`, err.message);
+        throw err;
     }
-    
-    console.log('[DB] getConversation END:', conversationId, 'at', new Date().toISOString());
-    return data;
 }
 
 async function updateConversationTitle(conversationId, title) {
@@ -134,38 +173,59 @@ async function saveMessageToSupabase(conversationId, userId, role, content) {
 
 async function loadMessagesFromSupabase(conversationId) {
     const supabase = getSupabase();
-    console.log('[DB] loadMessagesFromSupabase START:', conversationId, 'at', new Date().toISOString());
+    const requestId = generateRequestId();
+    const startTime = Date.now();
+    console.log(`[DB] [${requestId}] loadMessagesFromSupabase START:`, conversationId, 'at', new Date().toISOString());
     
-    const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-    
-    if (error) {
-        console.error('[DB] loadMessagesFromSupabase ERROR:', error, 'at', new Date().toISOString());
-        throw error;
-    }
-    
-    console.log('[DB] loadMessagesFromSupabase END:', conversationId, 'count:', (data || []).length, 'at', new Date().toISOString());
-    const messages = data || [];
-    
-    return messages.map(msg => {
-        let content = msg.content;
+    try {
+        const queryPromise = supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
         
-        if (typeof content === 'string' && content.trim().startsWith('{')) {
-            try {
-                content = JSON.parse(content);
-            } catch (e) {
-                console.warn('Failed to parse message content as JSON:', e);
-            }
+        const result = await withTimeout(queryPromise, 10000, requestId, 'loadMessagesFromSupabase');
+        const { data, error, status, statusText } = result;
+        const elapsed = Date.now() - startTime;
+        
+        console.log(`[DB] [${requestId}] loadMessagesFromSupabase RESPONSE:`, {
+            hasData: !!data,
+            count: (data || []).length,
+            error: error,
+            status: status,
+            statusText: statusText,
+            elapsedMs: elapsed
+        });
+        
+        if (error) {
+            console.error(`[DB] [${requestId}] loadMessagesFromSupabase ERROR:`, error, 'at', new Date().toISOString());
+            throw error;
         }
         
-        return {
-            ...msg,
-            content: content
-        };
-    });
+        console.log(`[DB] [${requestId}] loadMessagesFromSupabase END:`, conversationId, 'count:', (data || []).length, 'elapsed:', elapsed + 'ms');
+        const messages = data || [];
+        
+        return messages.map(msg => {
+            let content = msg.content;
+            
+            if (typeof content === 'string' && content.trim().startsWith('{')) {
+                try {
+                    content = JSON.parse(content);
+                } catch (e) {
+                    console.warn('Failed to parse message content as JSON:', e);
+                }
+            }
+            
+            return {
+                ...msg,
+                content: content
+            };
+        });
+    } catch (err) {
+        const elapsed = Date.now() - startTime;
+        console.error(`[DB] [${requestId}] loadMessagesFromSupabase EXCEPTION after ${elapsed}ms:`, err.message);
+        throw err;
+    }
 }
 
 async function deleteAllUserConversations(userId) {

@@ -17,11 +17,32 @@ async function initAuth() {
     }
     
     authSupabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[Auth] onAuthStateChange event:', event, 'hasSession:', !!session, 'at', new Date().toISOString());
+        
+        if (session) {
+            const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
+            console.log('[Auth] Session expires at:', expiresAt);
+        }
+        
         if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
             await ensureUserExists(session.user);
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
+        } else if (event === 'TOKEN_REFRESHED') {
+            console.log('[Auth] Token refreshed successfully');
+            if (session) {
+                currentUser = session.user;
+            }
+        } else if (event === 'USER_UPDATED') {
+            console.log('[Auth] User updated');
+            if (session) {
+                currentUser = session.user;
+            }
+        }
+        
+        if (!session && event !== 'SIGNED_OUT' && event !== 'INITIAL_SESSION') {
+            console.warn('[Auth] Session became null unexpectedly during event:', event);
         }
     });
     
