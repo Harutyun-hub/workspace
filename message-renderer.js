@@ -51,7 +51,10 @@ function normalizeEnvelope(response) {
             text: envelope.text || envelope.content || envelope.note || '',
             data: normalizedData,
             chart_type: envelope.chart_type || envelope.chartType || 'bar',
-            note: envelope.note || ''
+            note: envelope.note || '',
+            summary: envelope.summary || '',
+            key_points: envelope.key_points || [],
+            recommendations: envelope.recommendations || []
         };
     } catch (error) {
         console.error('Error normalizing envelope:', error);
@@ -67,7 +70,8 @@ function renderMessage(content) {
             text: renderText,
             chart: renderChart,
             table: renderTable,
-            media_gallery: renderMediaGallery
+            media_gallery: renderMediaGallery,
+            insights: renderInsights
         };
 
         const renderer = renderers[envelope.answer_type] || renderText;
@@ -599,6 +603,64 @@ function renderMediaGallery(envelope) {
         
         html += '</div>';
     });
+    
+    html += '</div>';
+    
+    return html;
+}
+
+function renderInsights(envelope) {
+    const title = envelope.title || 'Insights';
+    const summary = envelope.summary || '';
+    const keyPoints = envelope.key_points || [];
+    const recommendations = envelope.recommendations || [];
+    const note = envelope.note || '';
+
+    function parseMarkdownBold(text) {
+        if (!text) return '';
+        let parsed = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        if (!parsed.includes('<strong>') && text.includes(':')) {
+            const colonIndex = text.indexOf(':');
+            const beforeColon = text.substring(0, colonIndex);
+            const afterColon = text.substring(colonIndex);
+            parsed = `<strong>${escapeHtml(beforeColon)}</strong>${escapeHtml(afterColon)}`;
+            return parsed;
+        }
+        return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    let html = '<div class="insights-card">';
+    
+    if (title) {
+        html += `<h4 class="insights-title">${escapeHtml(title)}</h4>`;
+    }
+    
+    if (summary) {
+        html += `<p class="insights-summary">${escapeHtml(summary)}</p>`;
+    }
+    
+    if (keyPoints.length > 0) {
+        html += '<ul class="insights-key-points">';
+        keyPoints.forEach(point => {
+            html += `<li>${parseMarkdownBold(point)}</li>`;
+        });
+        html += '</ul>';
+    }
+    
+    if (recommendations.length > 0) {
+        html += '<div class="insights-recommendations-section">';
+        html += '<h5 class="insights-recommendations-header">🚀 Recommendations</h5>';
+        html += '<ul class="insights-recommendations-list">';
+        recommendations.forEach(rec => {
+            html += `<li>${escapeHtml(rec)}</li>`;
+        });
+        html += '</ul>';
+        html += '</div>';
+    }
+    
+    if (note) {
+        html += `<p class="insights-note">${escapeHtml(note)}</p>`;
+    }
     
     html += '</div>';
     
