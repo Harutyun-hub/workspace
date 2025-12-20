@@ -97,8 +97,19 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - Global safety watchdog: 60s timeout auto-resets stuck states
     - Typing effect timeout: 15s max with guaranteed promise resolution
     - AI request timeout: 45s with proper abort controller cleanup
-    - Console logging for all state transitions aids debugging
+    - Logger integration for all state transitions aids debugging
     - Exposed `ChatStateMachine` and `ChatState` on window for runtime debugging
+- **Application Lifecycle Manager** (Added December 2025):
+    - Strict initialization ordering: DOMContentLoaded → Auth.initialize() → Chat.initialize()
+    - Promise-based `Auth.initialize()` ensures authentication completes before chat initialization
+    - Global error boundary with `window.onerror` and `window.onunhandledrejection` handlers
+    - Race condition prevention through sequential async/await initialization flow
+    - Auth module exports both global functions and `Auth` object for backward compatibility
+- **Standardized Database Layer** (Added December 2025):
+    - All Supabase operations return standardized `{ success, data, error }` objects
+    - Consistent error handling pattern: check `result.success` before accessing `result.data`
+    - Failed operations include structured error information in `result.error`
+    - All database operations use Logger for telemetry instead of raw console calls
 - **Server**: Python HTTP server providing a `/api/config` endpoint for secure credential delivery (Supabase anon key).
 - **Competitive Intelligence Suite**: `dashboard.html` with `intelligence.js` and `intelligence.css` for 4-pillar competitive analysis:
   - Data loading functions use `getCompanyIdsFromFilters()` helper for client-vs-competitor comparison
