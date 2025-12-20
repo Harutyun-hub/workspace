@@ -98,3 +98,45 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
 
 CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON public.conversations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create app_logs table for enterprise-grade logging
+CREATE TABLE IF NOT EXISTS public.app_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    level TEXT NOT NULL CHECK (level IN ('info', 'warn', 'error')),
+    message TEXT NOT NULL,
+    context TEXT,
+    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    meta JSONB DEFAULT '{}'::jsonb
+);
+
+-- Create indexes for efficient log querying
+CREATE INDEX IF NOT EXISTS idx_app_logs_level ON public.app_logs(level);
+CREATE INDEX IF NOT EXISTS idx_app_logs_created_at ON public.app_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_logs_user_id ON public.app_logs(user_id);
+
+-- Enable Row Level Security for app_logs
+ALTER TABLE public.app_logs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Any authenticated user can insert logs
+CREATE POLICY "Users can insert logs"
+    ON public.app_logs FOR INSERT
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+-- RLS Policy: Only admins can read logs (using a custom claim or role check)
+-- For admin access, you would typically set up a custom claim in Supabase Auth
+-- This policy checks for an 'admin' role in the user's app_metadata
+CREATE POLICY "Only admins can read logs"
+    ON public.app_logs FOR SELECT
+    USING (
+        auth.jwt() ->> 'role' = 'admin' 
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    );
+
+-- RLS Policy: Only admins can delete logs
+CREATE POLICY "Only admins can delete logs"
+    ON public.app_logs FOR DELETE
+    USING (
+        auth.jwt() ->> 'role' = 'admin' 
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+    );

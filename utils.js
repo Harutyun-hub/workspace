@@ -60,7 +60,7 @@ function hideLoadingOverlay() {
 }
 
 function handleError(error, context = 'Operation') {
-    console.error(`${context} failed:`, error);
+    Logger.error(error, context);
     
     let userMessage = `${context} failed. Please try again.`;
     
