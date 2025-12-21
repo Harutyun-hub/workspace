@@ -1093,7 +1093,7 @@ async function updateConversationTitleIfNeeded(conversationId, title) {
         const messageCount = countResult.success ? countResult.data : 0;
         
         if (messageCount === 2) {
-            const updateResult = await withTimeout(updateConversationTitle(conversationId, title), 10000);
+            const updateResult = await withTimeout(updateConversationTitle(conversationId, title), 120000);
             if (updateResult.success) {
                 const updated = updateSidebarTitleLocally(conversationId, title);
                 if (!updated) {
