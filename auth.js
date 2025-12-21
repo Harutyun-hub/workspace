@@ -42,6 +42,11 @@ async function _performAuthInit() {
         
         Logger.info('Supabase client initialized successfully', AUTH_CONTEXT);
         
+        // Mark logger as ready to flush buffered logs
+        if (typeof Logger !== 'undefined' && Logger.markSupabaseReady) {
+            Logger.markSupabaseReady();
+        }
+        
         const { data: { session }, error } = await authSupabase.auth.getSession();
         
         if (error) {

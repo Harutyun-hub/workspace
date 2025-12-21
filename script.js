@@ -28,6 +28,7 @@ window.onunhandledrejection = function(event) {
 let currentConversationId = null;
 let currentSessionId = null;
 let isInitialized = false;
+let isAppInitializing = false;
 let chatDropdownListenerAttached = false;
 let isLoadingConversation = false;
 let pendingBackgroundTasks = 0;
@@ -318,6 +319,7 @@ function cleanupAllState() {
     
     isLoadingConversation = false;
     isInitialized = false;
+    isAppInitializing = false;
 }
 
 // ============================================
@@ -1549,6 +1551,13 @@ const Chat = {
 };
 
 async function initApp() {
+    // Prevent double initialization
+    if (isAppInitializing || appLifecycleReady) {
+        Logger.info('App initialization already in progress or complete, skipping duplicate call', APP_CONTEXT);
+        return;
+    }
+    
+    isAppInitializing = true;
     Logger.info('Application lifecycle starting...', APP_CONTEXT);
     
     // Step 1: DOM is already ready (called from DOMContentLoaded)
@@ -1584,11 +1593,13 @@ async function initApp() {
         await Chat.initialize();
         
         appLifecycleReady = true;
+        isAppInitializing = false;
         Logger.info('Application lifecycle complete - app is ready', APP_CONTEXT);
         
     } catch (error) {
         Logger.error(error, APP_CONTEXT, { operation: 'initApp' });
         showToast('Failed to initialize application. Please refresh the page.', 'error');
+        isAppInitializing = false;
     }
 }
 

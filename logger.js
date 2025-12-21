@@ -11,23 +11,56 @@ class Logger {
         error: 'color: #F44336; font-weight: bold; background: #FFEBEE; padding: 2px 6px; border-radius: 3px;'
     };
 
+    static _logBuffer = [];
+    static _supabaseReady = false;
+    static _flushingBuffer = false;
+
+    static markSupabaseReady() {
+        if (this._supabaseReady) return;
+        
+        this._supabaseReady = true;
+        console.log('%c[Logger]%c Supabase ready - flushing log buffer...', this.STYLES.info, 'color: inherit;');
+        this._flushBuffer();
+    }
+
+    static async _flushBuffer() {
+        if (this._flushingBuffer || this._logBuffer.length === 0) return;
+        
+        this._flushingBuffer = true;
+        
+        const logsToFlush = [...this._logBuffer];
+        this._logBuffer = [];
+        
+        for (const log of logsToFlush) {
+            try {
+                await this._persistLogDirect(log.level, log.message, log.context, log.meta);
+            } catch (e) {
+                console.warn('[Logger] Failed to flush buffered log:', e.message);
+            }
+        }
+        
+        this._flushingBuffer = false;
+        console.log(`%c[Logger]%c Flushed ${logsToFlush.length} buffered logs`, this.STYLES.info, 'color: inherit;');
+    }
+
     static async _getCurrentUserId() {
         try {
             if (typeof getSupabase === 'function') {
                 const supabase = getSupabase();
-                const { data: { user } } = await supabase.auth.getUser();
-                return user?.id || null;
+                if (supabase) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    return user?.id || null;
+                }
             }
         } catch (e) {
-            // Silently fail - user might not be logged in
         }
         return null;
     }
 
-    static async _persistLog(level, message, context = null, meta = null) {
-        try {
-            if (typeof getSupabase === 'function') {
-                const supabase = getSupabase();
+    static async _persistLogDirect(level, message, context = null, meta = null) {
+        if (typeof getSupabase === 'function') {
+            const supabase = getSupabase();
+            if (supabase) {
                 const userId = await this._getCurrentUserId();
                 
                 await supabase.from('app_logs').insert({
@@ -38,8 +71,18 @@ class Logger {
                     meta: meta || {}
                 });
             }
+        }
+    }
+
+    static async _persistLog(level, message, context = null, meta = null) {
+        if (!this._supabaseReady) {
+            this._logBuffer.push({ level, message, context, meta, timestamp: Date.now() });
+            return;
+        }
+
+        try {
+            await this._persistLogDirect(level, message, context, meta);
         } catch (e) {
-            // Fail silently - don't crash the logger if Supabase is unavailable
             console.warn('[Logger] Failed to persist log to database:', e.message);
         }
     }
