@@ -283,6 +283,7 @@ function cancelConversationLoad() {
         currentLoadAbortController.abort();
         currentLoadAbortController = null;
     }
+    isLoadingConversation = false;
 }
 
 // Cancel any ongoing AI request
@@ -1107,14 +1108,8 @@ async function updateConversationTitleIfNeeded(conversationId, title) {
 }
 
 async function loadConversation(conversationId) {
-    // Cancel any existing load operation
+    // Cancel any existing load operation and reset loading state
     cancelConversationLoad();
-    
-    // If already loading the same conversation, skip
-    if (isLoadingConversation && conversationId === currentConversationId) {
-        Logger.info('Already loading this conversation, skipping...', 'LoadConv');
-        return;
-    }
     
     // Create new abort controller and unique load ID for this operation
     currentLoadAbortController = new AbortController();
