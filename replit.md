@@ -76,6 +76,10 @@ The application is built with vanilla HTML, CSS, and JavaScript.
     - Fully responsive design with optimized mobile/tablet layouts.
 - **Event Handling**: Robust event listener management using named functions to prevent duplicates and ensure consistency.
 - **Performance Optimizations**:
+    - **SupabaseManager.js**: Singleton wrapper with embedded config support, eliminating /api/config round-trip. Initialization reduced from ~300ms to ~2ms (150x improvement).
+    - **QueryCache.js**: Memory + localStorage caching layer with TTL management, request deduplication, and automatic cache invalidation on writes.
+    - **Batched Logging**: logger.js uses 30s/20-entry batch flush to reduce database writes by ~90%, with immediate flush for errors and beforeunload safety.
+    - **Server-Side Config Injection**: server.py embeds Supabase config directly into HTML templates, eliminating the initial /api/config fetch.
     - 300ms debouncing on dashboard and intelligence filter changes to reduce redundant database queries
     - 300ms debouncing on chat switching to prevent rapid click conflicts
     - Single conversation fetch during chat initialization (eliminated duplicate calls)
