@@ -1,0 +1,56 @@
+Master Prompt: Task 2 - The Battlefield Section
+Context: Continuing the "War Room" Build We are working on the same file (war_room.html). Do not create a new page. We are adding the second major section, called "The Battlefield," directly below the "Command Deck" (Threat Assessment) section we just built.
+
+Objective: Insert a "Bi-Directional Streamgraph" (Tug-of-War Chart) that visualizes the marketing conflict between "Us" (Primary Company) and "Them" (Comparison Company) over the last 30 days.
+
+1. The Database Logic (Schema-Aware) We need to fetch raw data and attribute it correctly using the Foreign Keys in our Supabase schema.
+
+The Schema:
+
+companies table has id (UUID).
+
+facebook_ads, google_ads, and instagram_posts all have a company_id column that links back to companies.id.
+
+The Filter Logic:
+
+Our app state tracks two IDs: primaryCompanyId (Us) and competitorCompanyId (Them).
+
+You must fetch records from the three data tables where company_id matches either of these two IDs.
+
+2. The Data Processing (loadBattlefieldData function) In war_room.js, create a function that:
+
+Fetches: The last 30 days of data from FB, Google, and Instagram.
+
+Aggregates: Loops through the data and groups it by day (e.g., "Dec 25").
+
+Splits: For each day, calculate two totals:
+
+Blue Total: Count of items where company_id === primaryCompanyId.
+
+Red Total: Count of items where company_id === competitorCompanyId.
+
+3. The Visualization (Chart.js Configuration) Render a Chart.js canvas in the new "Battlefield" section.
+
+The "Reflection" Trick:
+
+Dataset 1 (Us/Blue): Pass the Blue Total as Positive Integers (e.g., +5). Color: Neon Blue #3B82F6.
+
+Dataset 2 (Them/Red): Pass the Red Total as Negative Integers (e.g., -5). Color: Neon Red #EF4444.
+
+This creates a mirrored chart where Blue grows up and Red grows down from the x-axis.
+
+The Tooltip Fix (Crucial UX):
+
+Use the Chart.js tooltip.callbacks.label method to format the text.
+
+Logic: Math.abs(value). Never show the negative sign to the user. It should read "Competitor Activity: 5", not "-5".
+
+4. Design & Layout
+
+Container: A full-width glass-panel div below the hero section.
+
+Header: "TACTICAL TIMELINE (30 DAYS)".
+
+Grid: Hide the chart grid lines to keep the "Holographic" look. The y=0 line (the horizon) should be bright white to act as the "Frontline."
+
+Action: Update war_room.html to include the Battlefield container and write the schema-aware data fetching logic in war_room.js.

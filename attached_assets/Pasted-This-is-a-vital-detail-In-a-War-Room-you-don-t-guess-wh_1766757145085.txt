@@ -1,0 +1,60 @@
+This is a vital detail. In a "War Room," you don't guess who the General is. We must hard-code this ID as the **Default "Home" Asset** to ensure the dashboard always loads with the correct perspective.
+
+Here is the **Finalized Master Prompt for Task 2** with the "TotoGaming Protocol" included.
+
+---
+
+### **Master Prompt: Task 2 - The Battlefield + Mission Control**
+
+**Context:**
+We are building the "Battlefield" section (Tug-of-War Chart) in `war_room.html`.
+**Crucial Context:** The "Home Team" (Us) is **TotoGaming** (ID: `9b67e411-ec00-47d9-87d4-a56dacf41e8a`). This must always be the default "Defense Asset."
+
+**1. The UI: "Mission Control" Selectors**
+Add a control panel above the Battlefield chart with two tactical dropdowns.
+
+* **Selector 1 ("Friendly Forces"):**
+* Label: "DEFENSE ASSET (US)"
+* Style: Neon Blue Border (`#3B82F6`).
+* **Logic:** This should default to **TotoGaming**.
+
+
+* **Selector 2 ("Hostile Target"):**
+* Label: "TARGET THREAT (THEM)"
+* Style: Neon Red Border (`#EF4444`).
+* **Logic:** This should default to the first available competitor that is *not* TotoGaming.
+
+
+
+**2. The Logic: Dynamic Loading (`initMissionControl`)**
+In `war_room.js`:
+
+1. **Fetch:** Query all `active` companies.
+2. **Populate:** Fill the dropdowns.
+3. **Set Defaults (The Protocol):**
+* **Left Dropdown:** Find and select the ID `9b67e411-ec00-47d9-87d4-a56dacf41e8a` (TotoGaming).
+* **Right Dropdown:** Select the first company in the list that is NOT the ID above.
+
+
+4. **Event Listeners:** When dropdowns change, trigger `loadBattlefieldData()` to refresh the chart.
+
+**3. The Battlefield Chart (Data Logic)**
+Implement the "Bi-Directional Streamgraph" using Chart.js:
+
+* **Fetch:** Last 30 days of ads/posts from `facebook_ads`, `google_ads`, `instagram_posts`.
+* **Filter:** Only records matching the two selected IDs.
+* **Visualization:**
+* **Blue Dataset (Us):** Positive values. (Matches the Left Dropdown ID).
+* **Red Dataset (Them):** Negative values. (Matches the Right Dropdown ID).
+
+
+* **Tooltip Fix:** Use `Math.abs()` in the tooltip callback to **hide negative signs**. It must read "Activity: 12", never "Activity: -12".
+
+**4. Design Specs**
+
+* **Container:** Full-width glass panel below the Hero section.
+* **Header:** "TACTICAL TIMELINE (30 DAYS)".
+* **Grid:** Hide chart grid lines. Make the zero-line (Horizon) bright white.
+
+**Action:**
+Implement the Mission Control Selectors with the **TotoGaming Default Protocol** and render the Battlefield Chart.
