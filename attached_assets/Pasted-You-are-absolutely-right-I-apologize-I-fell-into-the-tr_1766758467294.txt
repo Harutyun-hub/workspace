@@ -1,0 +1,119 @@
+You are absolutely right. I apologize. I fell into the trap of building a "Standard SaaS Dashboard" (dropdowns, date pickers) instead of the "Cognitive Warfare" System we designed.
+
+Let's reset.
+
+The Goal: A War Room, not a report. The Research Said: Don't ask the user to hunt for answers with filters. Push the answer to them. . The Problem with V1: It's ambiguous. You see a "Red Bar" and have to ask "Is that an Ad? A Post? Is it Google or Facebook?" Filters are a band-aid. The visualization itself should answer that.
+
+Here is the Corrected Architecture to fix the "Battlefield" without resorting to boring dropdowns.
+
+The New Concept: "The Stacked Frontline"
+Instead of hiding data behind a "Source Selector," we will visualize the Composition of the Attack directly on the chart.
+
+1. The Chart Logic: "Total Firepower" (Stacked Streamgraph) We will keep the "Us vs. Them" reflection (Blue Up, Red Down), but we will stack the bars to show exactly what the activity is.
+
+The Enemy (Red Side - Downwards):
+
+Layer 1 (The Heavy Artillery): Paid Ads (Facebook + Google).
+
+Color: Neon Red (#EF4444). Solid, bright.
+
+Meaning: "They are spending money here."
+
+Layer 2 (The Infantry): Organic Posts (Instagram).
+
+Color: Faded Red / Dark Maroon (rgba(239, 68, 68, 0.3)).
+
+Meaning: "They are just posting content."
+
+The Defense (Blue Side - Upwards):
+
+Layer 1: Our Ads (Neon Blue).
+
+Layer 2: Our Posts (Faded Blue).
+
+The Result: You look at the chart and instantly see: "Wow, that huge Red spike isn't just noise; it's 90% Paid Ads (Neon Red). They are launching a blitz." No dropdowns needed.
+
+2. The "Intel Feed" (Context) You rightly asked: "What actual data is represented?" We will add a Side Panel called "Live Intel Feed" next to the chart.
+
+Interaction: When you hover over a bar on the chart (e.g., Dec 25th), the Side Panel updates to show the actual top 3 creatives from that day.
+
+Why: This connects the "Abstract Number" (Bars) to the "Real Threat" (Images).
+
+Master Prompt: Task 3 - The Stacked Frontline (Corrected)
+Context: We are rebuilding the "Battlefield" Chart in war_room.html. Correction: The previous chart was too vague. We are scrapping the single-color bars. We need a Stacked Bar Chart that distinguishes between Paid Aggression (Ads) and Organic Noise (Posts) instantly.
+
+1. The Visualization: "Stacked Reflection Chart" Update the Chart.js configuration to have 4 Datasets (2 for Us, 2 for Them).
+
+Dataset 1: Enemy Paid Ads (Facebook + Google)
+
+Data: Negative Counts.
+
+Style: backgroundColor: '#EF4444' (Bright Neon Red).
+
+Stack: 'Them'
+
+Dataset 2: Enemy Organic (Instagram)
+
+Data: Negative Counts.
+
+Style: backgroundColor: 'rgba(239, 68, 68, 0.3)' (Faded/Ghost Red).
+
+Stack: 'Them'
+
+Dataset 3: Friendly Paid Ads
+
+Data: Positive Counts.
+
+Style: backgroundColor: '#3B82F6' (Bright Neon Blue).
+
+Stack: 'Us'
+
+Dataset 4: Friendly Organic
+
+Data: Positive Counts.
+
+Style: backgroundColor: 'rgba(59, 130, 246, 0.3)' (Faded Blue).
+
+Stack: 'Us'
+
+2. The Data Logic (loadBattlefieldData) Refactor the data fetching to split the counts:
+
+Query: Fetch facebook_ads, google_ads, and instagram_posts for the selected companies.
+
+Loop: For each day:
+
+Enemy Paid = Sum of Enemy FB Ads + Enemy Google Ads.
+
+Enemy Organic = Sum of Enemy Insta Posts.
+
+(Repeat for Friendly).
+
+3. The Interaction: "Intel Feed" (Context)
+
+Layout: Create a 2-column layout for the Battlefield section.
+
+Left (70%): The Chart.
+
+Right (30%): A new panel titled "INTEL FEED".
+
+Logic:
+
+On hover of a chart bar, find the specific posts/ads from that day.
+
+Render them as small "cards" in the Intel Feed panel.
+
+Content: Show the Image Thumbnail and Headline (or truncated text).
+
+Default: If no hover, show the most recent 3 items from the "Enemy Paid" category.
+
+4. Design Polish
+
+Legend: Custom HTML Legend above the chart:
+
+[■ Bright Red] PAID OFFENSIVE
+
+[■ Faded Red] ORGANIC NOISE
+
+Y-Axis: Remove the numbers. Keep the bright white "Frontline" at 0.
+
+Action: Refactor the Battlefield to use Stacked Bars (Paid vs Organic) and add the "Intel Feed" sidebar to visualize the actual content behind the numbers.
