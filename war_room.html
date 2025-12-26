@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="war_room.css">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="war-room">
@@ -72,6 +73,54 @@
                 </div>
             </div>
         </main>
+
+        <section class="battlefield-section" id="battlefieldSection">
+            <div class="mission-control glass-card">
+                <div class="mission-control-header">
+                    <span class="mission-control-label">MISSION CONTROL</span>
+                    <span class="mission-control-status">SELECT COMBATANTS</span>
+                </div>
+                <div class="mission-control-selectors">
+                    <div class="selector-group friendly">
+                        <label class="selector-label" for="friendlySelect">DEFENSE ASSET (US)</label>
+                        <div class="custom-select-wrapper friendly">
+                            <select id="friendlySelect" class="tactical-select friendly">
+                                <option value="">Loading...</option>
+                            </select>
+                            <span class="select-arrow"></span>
+                        </div>
+                    </div>
+                    <div class="versus-divider">
+                        <span class="versus-text">VS</span>
+                    </div>
+                    <div class="selector-group hostile">
+                        <label class="selector-label" for="hostileSelect">TARGET THREAT (THEM)</label>
+                        <div class="custom-select-wrapper hostile">
+                            <select id="hostileSelect" class="tactical-select hostile">
+                                <option value="">Loading...</option>
+                            </select>
+                            <span class="select-arrow"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="battlefield-chart glass-card">
+                <div class="battlefield-header">
+                    <span class="battlefield-label">TACTICAL TIMELINE (30 DAYS)</span>
+                    <div class="battlefield-legend">
+                        <span class="legend-item friendly"><span class="legend-dot friendly"></span> US</span>
+                        <span class="legend-item hostile"><span class="legend-dot hostile"></span> THEM</span>
+                    </div>
+                </div>
+                <div class="battlefield-canvas-container">
+                    <canvas id="battlefieldChart"></canvas>
+                </div>
+                <div class="battlefield-footer">
+                    <span class="frontline-label">FRONTLINE</span>
+                </div>
+            </div>
+        </section>
 
         <footer class="ticker-tape" id="tickerTape">
             <div class="ticker-content" id="tickerContent">

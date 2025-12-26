@@ -508,9 +508,267 @@ body {
     }
 }
 
+.battlefield-section {
+    padding: 0 2rem 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.mission-control {
+    padding: 1.5rem 2rem;
+}
+
+.mission-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.mission-control-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+}
+
+.mission-control-status {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    border: 1px solid var(--border-glass);
+}
+
+.mission-control-selectors {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 280px;
+}
+
+.selector-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.selector-group.friendly .selector-label {
+    color: var(--accent-blue);
+}
+
+.selector-group.hostile .selector-label {
+    color: var(--threat-critical);
+}
+
+.custom-select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tactical-select {
+    width: 100%;
+    padding: 0.875rem 2.5rem 0.875rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 2px solid var(--border-glass);
+    border-radius: 8px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    transition: all 0.2s ease;
+}
+
+.tactical-select:focus {
+    outline: none;
+}
+
+.tactical-select.friendly {
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.tactical-select.friendly:hover,
+.tactical-select.friendly:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3),
+                0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+.tactical-select.hostile {
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.tactical-select.hostile:hover,
+.tactical-select.hostile:focus {
+    border-color: var(--threat-critical);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3),
+                0 0 40px rgba(239, 68, 68, 0.2);
+}
+
+.tactical-select option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 0.5rem;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 1rem;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--text-secondary);
+}
+
+.custom-select-wrapper.friendly .select-arrow {
+    border-top-color: var(--accent-blue);
+}
+
+.custom-select-wrapper.hostile .select-arrow {
+    border-top-color: var(--threat-critical);
+}
+
+.versus-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.versus-text {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-shadow: 0 0 20px rgba(148, 163, 184, 0.3);
+}
+
+.battlefield-chart {
+    display: flex;
+    flex-direction: column;
+}
+
+.battlefield-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.battlefield-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+}
+
+.battlefield-legend {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.friendly {
+    background: var(--accent-blue);
+    box-shadow: 0 0 10px var(--accent-blue);
+}
+
+.legend-dot.hostile {
+    background: var(--threat-critical);
+    box-shadow: 0 0 10px var(--threat-critical);
+}
+
+.battlefield-canvas-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.battlefield-canvas-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.battlefield-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.frontline-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    padding: 0.25rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 @media (max-width: 1024px) {
     .command-deck {
         grid-template-columns: 1fr;
+    }
+    
+    .battlefield-section {
+        padding: 0 1rem 1rem;
+    }
+    
+    .mission-control-selectors {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .selector-group {
+        min-width: 100%;
+    }
+    
+    .versus-divider {
+        padding: 0.5rem;
     }
     
     .threat-text {
@@ -550,5 +808,13 @@ body {
     
     .aggression-value {
         font-size: 3rem;
+    }
+    
+    .battlefield-canvas-container {
+        height: 250px;
+    }
+    
+    .mission-control {
+        padding: 1rem;
     }
 }
