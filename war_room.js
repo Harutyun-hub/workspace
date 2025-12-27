@@ -1071,6 +1071,7 @@
             const promos = data.active_promotions;
             const offers = promos.offers || {};
             const headline = promos.headline || null;
+            const description = promos.description || null;
             
             const hasAnyPromo = ['money', 'spins', 'chips', 'events'].some(
                 cat => Array.isArray(offers[cat]) && offers[cat].length > 0
@@ -1096,14 +1097,18 @@
             }
             
             let pillsHtml = '';
+            const tooltipText = description ? escapeHtml(description) : '';
+            
             for (const [category, config] of Object.entries(PROMO_CATEGORIES)) {
                 const items = offers[category];
                 if (Array.isArray(items) && items.length > 0) {
                     for (const item of items) {
+                        const rawText = String(item);
                         pillsHtml += `
-                            <span class="promo-pill ${config.cssClass}">
+                            <span class="promo-pill ${config.cssClass}"${tooltipText ? ` title="${tooltipText}"` : ''}>
                                 <span class="promo-pill-icon">${config.icon}</span>
-                                <span class="promo-pill-text">${escapeHtml(item)}</span>
+                                <span class="promo-pill-text">${escapeHtml(rawText)}</span>
+                                ${tooltipText ? `<span class="promo-tooltip">${tooltipText}</span>` : ''}
                             </span>
                         `;
                     }

@@ -1659,6 +1659,52 @@ body {
     font-size: 0.85rem;
 }
 
+.promo-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--text-secondary);
+    white-space: normal;
+    max-width: 280px;
+    min-width: 150px;
+    text-align: left;
+    line-height: 1.4;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.promo-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(15, 23, 42, 0.95);
+}
+
+.promo-pill:hover .promo-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+.promo-pill {
+    position: relative;
+}
+
 .promo-pill.money {
     background: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.5);
