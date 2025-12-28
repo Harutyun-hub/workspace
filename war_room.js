@@ -855,8 +855,12 @@
     function renderAiTacticalInsight(screenshot) {
         if (!screenshot) return '';
         
-        const hasAiData = screenshot.promotions_detected === true || 
-                          (screenshot.ai_analysis && screenshot.ai_analysis.trim() !== '');
+        const promotionsDetected = screenshot.promotions_detected === true || 
+                                   screenshot.promotions_detected === 'true';
+        const hasAiAnalysis = screenshot.ai_analysis && 
+                              String(screenshot.ai_analysis).trim() !== '';
+        
+        const hasAiData = promotionsDetected || hasAiAnalysis;
         
         if (!hasAiData) return '';
         
