@@ -257,74 +257,58 @@
 
     async function fetchBattlefieldData() {
         try {
-            log('Fetching battlefield data (Paid vs Organic)...');
+            log('Fetching battlefield data from intel_events...');
             
             await SupabaseManager.initialize();
             const client = SupabaseManager.getClient();
             
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const dateFilter = thirtyDaysAgo.toISOString().split('T')[0];
+            const dateFilter = thirtyDaysAgo.toISOString();
             
             const companyIds = [primaryCompanyId, competitorCompanyId].filter(Boolean);
             
-            const [fbResult, googleResult, igResult] = await Promise.all([
-                client
-                    .from('facebook_ads')
-                    .select('id, company_id, start_date_string, ad_image_url, ad_text, page_name')
-                    .in('company_id', companyIds)
-                    .gte('start_date_string', dateFilter)
-                    .order('start_date_string', { ascending: false }),
-                client
-                    .from('google_ads')
-                    .select('id, company_id, first_shown, image_url, url')
-                    .in('company_id', companyIds)
-                    .gte('first_shown', dateFilter)
-                    .order('first_shown', { ascending: false }),
-                client
-                    .from('instagram_posts')
-                    .select('id, company_id, created_at, display_uri, text, username')
-                    .in('company_id', companyIds)
-                    .gte('created_at', dateFilter)
-                    .order('created_at', { ascending: false })
-            ]);
+            const { data, error } = await client
+                .from('intel_events')
+                .select('company_id, event_type, headline, description, severity, created_at')
+                .in('company_id', companyIds)
+                .gte('created_at', dateFilter)
+                .order('created_at', { ascending: false });
             
-            const fbData = (fbResult.data || []).map(item => ({
-                ...item,
-                created_at: item.start_date_string,
-                source: 'facebook',
-                type: 'paid',
-                image_url: item.ad_image_url,
-                text: item.ad_text,
-                title: item.page_name
-            }));
+            if (error) throw error;
             
-            const googleData = (googleResult.data || []).map(item => ({
-                ...item,
-                created_at: item.first_shown,
-                source: 'google',
-                type: 'paid',
-                image_url: item.image_url,
-                text: item.url,
-                title: 'Google Ad'
-            }));
+            const allData = (data || []).map(item => {
+                let type = 'organic';
+                let isImportant = false;
+                let source = 'intel';
+                
+                if (item.event_type === 'NEW_AD_LAUNCH') {
+                    type = 'paid';
+                    source = 'ad';
+                } else if (item.event_type === 'SOCIAL_POST') {
+                    type = 'organic';
+                    source = 'social';
+                } else if (item.event_type === 'CREATIVE_UPDATE') {
+                    type = 'organic';
+                    isImportant = true;
+                    source = 'creative';
+                }
+                
+                return {
+                    ...item,
+                    type,
+                    source,
+                    isImportant,
+                    text: item.headline || item.description || '',
+                    title: item.headline || 'Intel Event'
+                };
+            });
             
-            const igData = (igResult.data || []).map(item => ({
-                ...item,
-                source: 'instagram',
-                type: 'organic',
-                image_url: item.display_uri,
-                text: item.text,
-                title: item.username
-            }));
-            
-            const allData = [...fbData, ...googleData, ...igData];
-            
-            log('Battlefield raw data fetched', { 
-                fb: fbData.length,
-                google: googleData.length,
-                ig: igData.length,
-                total: allData.length
+            log('Battlefield raw data fetched from intel_events', { 
+                total: allData.length,
+                paid: allData.filter(d => d.type === 'paid').length,
+                organic: allData.filter(d => d.type === 'organic').length,
+                important: allData.filter(d => d.isImportant).length
             });
             
             battlefieldRawData = allData;
@@ -570,13 +554,14 @@
             return itemDate === dateStr && item.company_id === competitorCompanyId;
         });
         
-        const paidFirst = dayItems.sort((a, b) => {
-            if (a.type === 'paid' && b.type !== 'paid') return -1;
-            if (a.type !== 'paid' && b.type === 'paid') return 1;
-            return 0;
+        const severityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
+        const sortedBySeverity = dayItems.sort((a, b) => {
+            const aSeverity = severityOrder[a.severity] ?? 3;
+            const bSeverity = severityOrder[b.severity] ?? 3;
+            return aSeverity - bSeverity;
         });
         
-        const topItems = paidFirst.slice(0, 3);
+        const topItems = sortedBySeverity.slice(0, 3);
         
         if (topItems.length === 0) {
             contentEl.innerHTML = `
@@ -592,16 +577,34 @@
     }
 
     function renderIntelCard(item) {
-        const sourceIcon = {
-            'facebook': '📘',
-            'google': '🔷',
-            'instagram': '📸'
+        const eventTypeIcon = {
+            'NEW_AD_LAUNCH': '📢',
+            'SOCIAL_POST': '📱',
+            'CREATIVE_UPDATE': '🎨'
+        };
+        
+        const severityIcon = {
+            'HIGH': '🔴',
+            'MEDIUM': '🟡',
+            'LOW': '🟢'
+        };
+        
+        const eventTypeLabel = {
+            'NEW_AD_LAUNCH': 'AD LAUNCH',
+            'SOCIAL_POST': 'SOCIAL',
+            'CREATIVE_UPDATE': 'CREATIVE'
         };
         
         const typeLabel = item.type === 'paid' ? 'PAID' : 'ORGANIC';
-        const textContent = item.text || item.title || '';
-        const truncatedText = textContent.length > 80 ? textContent.substring(0, 80) + '...' : textContent;
-        const displayText = truncatedText || 'No description available';
+        const eventLabel = eventTypeLabel[item.event_type] || item.source?.toUpperCase() || 'INTEL';
+        const severityLabel = item.severity ? ` · ${severityIcon[item.severity] || ''} ${item.severity}` : '';
+        const importantFlag = item.isImportant ? ' · ⚠️ IMPORTANT' : '';
+        
+        const headlineText = item.headline || item.title || '';
+        const descriptionText = item.description || '';
+        
+        const displayHeadline = headlineText.length > 60 ? headlineText.substring(0, 60) + '...' : headlineText;
+        const displayDescription = descriptionText.length > 100 ? descriptionText.substring(0, 100) + '...' : descriptionText;
         
         let dateStr = '';
         try {
@@ -610,18 +613,23 @@
             dateStr = 'Unknown date';
         }
         
-        const thumbnailHtml = item.image_url 
-            ? `<img class="intel-thumbnail" src="${item.image_url}" alt="Creative" onerror="this.parentElement.innerHTML='<div class=\\'intel-thumbnail-placeholder\\'><span>${sourceIcon[item.source] || '📄'}</span></div>'">`
-            : `<div class="intel-thumbnail-placeholder"><span>${sourceIcon[item.source] || '📄'}</span></div>`;
+        const icon = eventTypeIcon[item.event_type] || '🔍';
         
-        const sourceName = (item.source || 'unknown').toUpperCase();
+        const thumbnailHtml = item.image_url 
+            ? `<img class="intel-thumbnail" src="${item.image_url}" alt="Creative" onerror="this.parentElement.innerHTML='<div class=\\'intel-thumbnail-placeholder\\'><span>${icon}</span></div>'">`
+            : `<div class="intel-thumbnail-placeholder"><span>${icon}</span></div>`;
+        
+        const descriptionHtml = displayDescription 
+            ? `<span class="intel-description">${displayDescription}</span>` 
+            : '';
         
         return `
-            <div class="intel-card">
+            <div class="intel-card${item.isImportant ? ' important' : ''}${item.severity === 'HIGH' ? ' high-severity' : ''}">
                 ${thumbnailHtml}
                 <div class="intel-details">
-                    <span class="intel-source ${item.source || ''}">${sourceName} · ${typeLabel}</span>
-                    <span class="intel-text">${displayText}</span>
+                    <span class="intel-source ${item.source || ''}">${eventLabel} · ${typeLabel}${severityLabel}${importantFlag}</span>
+                    <span class="intel-text">${displayHeadline || 'No headline available'}</span>
+                    ${descriptionHtml}
                     <span class="intel-meta">${dateStr}</span>
                 </div>
             </div>
@@ -644,30 +652,28 @@
         statusEl.textContent = 'MONITORING';
         statusEl.classList.remove('active');
         
-        const enemyPaid = battlefieldRawData
-            .filter(item => item.company_id === competitorCompanyId && item.type === 'paid')
+        const severityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
+        
+        const enemyItems = battlefieldRawData
+            .filter(item => item.company_id === competitorCompanyId)
+            .sort((a, b) => {
+                const aSeverity = severityOrder[a.severity] ?? 3;
+                const bSeverity = severityOrder[b.severity] ?? 3;
+                return aSeverity - bSeverity;
+            })
             .slice(0, 3);
         
-        if (enemyPaid.length === 0) {
-            const anyEnemy = battlefieldRawData
-                .filter(item => item.company_id === competitorCompanyId)
-                .slice(0, 3);
-            
-            if (anyEnemy.length === 0) {
-                contentEl.innerHTML = `
-                    <div class="intel-empty">
-                        <span class="intel-empty-icon">📡</span>
-                        <span class="intel-empty-text">No enemy activity detected<br/>in the last 30 days</span>
-                    </div>
-                `;
-                return;
-            }
-            
-            contentEl.innerHTML = anyEnemy.map(item => renderIntelCard(item)).join('');
+        if (enemyItems.length === 0) {
+            contentEl.innerHTML = `
+                <div class="intel-empty">
+                    <span class="intel-empty-icon">📡</span>
+                    <span class="intel-empty-text">No enemy activity detected<br/>in the last 30 days</span>
+                </div>
+            `;
             return;
         }
         
-        contentEl.innerHTML = enemyPaid.map(item => renderIntelCard(item)).join('');
+        contentEl.innerHTML = enemyItems.map(item => renderIntelCard(item)).join('');
     }
 
     async function loadBattlefieldData() {
