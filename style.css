@@ -848,7 +848,7 @@ body {
     width: 80px;
     height: 80px;
     margin-bottom: 24px;
-    border-radius: 22px;
+    border-radius: 50%;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.15));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -860,12 +860,13 @@ body {
         0 8px 32px rgba(0, 0, 0, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.6),
         inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    overflow: hidden;
 }
 
 .welcome-logo {
-    width: 52px;
-    height: 52px;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .welcome-greeting {
