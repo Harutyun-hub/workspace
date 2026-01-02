@@ -1210,6 +1210,7 @@
         setInterval(updateSystemTime, 1000);
 
         try {
+            await SupabaseManager.initialize();
             await refreshDashboard();
             
             await initMissionControl();
