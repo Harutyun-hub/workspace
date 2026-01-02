@@ -48,10 +48,10 @@ window.IntelligenceUtils = {
 
             const events = eventsResponse.data || [];
             const latestScreenshot = screenshotResponse.data; // Can be null if no screenshot today
-            const historicalAvg =
-                (velocityResponse.data &&
-                    velocityResponse.data.avg_daily_ads) ||
-                5; // Default to 5
+            const rawHistoricalAvg =
+                velocityResponse.data &&
+                velocityResponse.data.avg_daily_ads;
+            const historicalAvg = rawHistoricalAvg && rawHistoricalAvg > 0 ? rawHistoricalAvg : 5;
 
             // --- PART A: AD VELOCITY SCORE (The Engine - 60% Weight) ---
             const adEvents = events.filter(
@@ -62,10 +62,7 @@ window.IntelligenceUtils = {
                         e.headline.includes("Google")),
             );
 
-            // Safe Average ensures we don't divide by zero.
-            // If historical avg is < 1 (new competitor), treat it as 1.
-            const safeAvg = Math.max(historicalAvg, 1);
-            const adRatio = adEvents.length / safeAvg;
+            const adRatio = adEvents.length / historicalAvg;
 
             let adScore = 0;
             if (adRatio <= 1.0)
@@ -116,7 +113,7 @@ window.IntelligenceUtils = {
             // Logic: If massive ad spike (>2x) AND aggressive promo -> MAX THREAT
             let totalScore = adScore + visualScore;
 
-            if (adRatio >= 2.0 && isHighValuePromo) {
+            if (adRatio > 2.0 && isHighValuePromo) {
                 totalScore = 100;
             }
 
