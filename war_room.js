@@ -151,6 +151,12 @@
     }
 
     async function refreshDashboard() {
+        const cachedData = IntelligenceUtils.getLocalThreatLevel();
+        updateDefconModule(cachedData.status);
+        updateAggressionGauge(cachedData.score);
+        updateLastScanTime();
+        log('Dashboard rendered with cached data', cachedData);
+
         try {
             const threatData = await IntelligenceUtils.calculateThreatLevel();
             
@@ -159,14 +165,11 @@
             updateLastScanTime();
             
             setConnectionStatus('connected', 'LIVE');
-            log('Dashboard refreshed with weighted threat calculation', threatData);
+            log('Dashboard refreshed with fresh threat calculation', threatData);
             
         } catch (error) {
             console.error('Dashboard refresh failed:', error);
             setConnectionStatus('error', 'OFFLINE');
-            
-            updateDefconModule('SECURE');
-            updateAggressionGauge(0);
         }
     }
 

@@ -254,47 +254,57 @@
             sidebar.classList.toggle('collapsed');
         });
         
+        function renderThreatUI(threatData) {
+            const aggressionScore = threatData.score;
+            
+            let threatLevel = 'low';
+            let stateText = 'Low 🟢 · ' + aggressionScore + '%';
+            if (threatData.status === 'CRITICAL') {
+                threatLevel = 'high';
+                stateText = 'HIGH 🔥 · ' + aggressionScore + '%';
+            } else if (threatData.status === 'ELEVATED') {
+                threatLevel = 'medium';
+                stateText = 'Moderate 👀 · ' + aggressionScore + '%';
+            }
+            
+            const warRoomBtn = document.getElementById('warRoomNavBtn');
+            if (warRoomBtn) {
+                warRoomBtn.classList.remove('threat-high', 'threat-medium');
+                if (threatLevel === 'high') {
+                    warRoomBtn.classList.add('threat-high');
+                } else if (threatLevel === 'medium') {
+                    warRoomBtn.classList.add('threat-medium');
+                }
+            }
+            
+            const hudEl = document.getElementById('aggressionHud');
+            const valueEl = document.getElementById('aggressionValue');
+            const dotEl = document.getElementById('aggressionDot');
+            
+            if (hudEl && valueEl && dotEl) {
+                valueEl.textContent = stateText;
+                valueEl.classList.remove('threat-low', 'threat-medium', 'threat-high');
+                dotEl.classList.remove('threat-low', 'threat-medium', 'threat-high');
+                
+                valueEl.classList.add('threat-' + threatLevel);
+                dotEl.classList.add('threat-' + threatLevel);
+                
+                hudEl.style.display = 'flex';
+            }
+            
+            return { aggressionScore, threatLevel };
+        }
+
         async function loadThreatTelemetry() {
+            const cachedData = IntelligenceUtils.getLocalThreatLevel();
+            renderThreatUI(cachedData);
+            console.log('✓ Threat telemetry rendered from cache:', cachedData);
+
             try {
                 const threatData = await IntelligenceUtils.calculateThreatLevel();
-                const aggressionScore = threatData.score;
+                const { aggressionScore, threatLevel } = renderThreatUI(threatData);
                 
-                let threatLevel = 'low';
-                let stateText = 'Low 🟢 · ' + aggressionScore + '%';
-                if (threatData.status === 'CRITICAL') {
-                    threatLevel = 'high';
-                    stateText = 'HIGH 🔥 · ' + aggressionScore + '%';
-                } else if (threatData.status === 'ELEVATED') {
-                    threatLevel = 'medium';
-                    stateText = 'Moderate 👀 · ' + aggressionScore + '%';
-                }
-                
-                const warRoomBtn = document.getElementById('warRoomNavBtn');
-                if (warRoomBtn) {
-                    warRoomBtn.classList.remove('threat-high', 'threat-medium');
-                    if (threatLevel === 'high') {
-                        warRoomBtn.classList.add('threat-high');
-                    } else if (threatLevel === 'medium') {
-                        warRoomBtn.classList.add('threat-medium');
-                    }
-                }
-                
-                const hudEl = document.getElementById('aggressionHud');
-                const valueEl = document.getElementById('aggressionValue');
-                const dotEl = document.getElementById('aggressionDot');
-                
-                if (hudEl && valueEl && dotEl) {
-                    valueEl.textContent = stateText;
-                    valueEl.classList.remove('threat-low', 'threat-medium', 'threat-high');
-                    dotEl.classList.remove('threat-low', 'threat-medium', 'threat-high');
-                    
-                    valueEl.classList.add('threat-' + threatLevel);
-                    dotEl.classList.add('threat-' + threatLevel);
-                    
-                    hudEl.style.display = 'flex';
-                }
-                
-                console.log('✓ Threat telemetry loaded:', { aggressionScore, threatLevel, status: threatData.status });
+                console.log('✓ Threat telemetry updated with fresh data:', { aggressionScore, threatLevel, status: threatData.status });
                 
             } catch (error) {
                 console.warn('Threat telemetry failed (non-blocking):', error.message);

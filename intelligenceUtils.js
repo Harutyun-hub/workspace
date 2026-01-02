@@ -1,8 +1,29 @@
 window.IntelligenceUtils = {
+    CACHE_KEY: 'cached_threat_level',
+
+    /**
+     * Synchronous function that returns cached threat data from localStorage.
+     * Use this for instant UI rendering on page load.
+     * Returns { score, status, label, cached: true } or default if no cache.
+     */
+    getLocalThreatLevel: function () {
+        try {
+            const cached = localStorage.getItem(this.CACHE_KEY);
+            if (cached) {
+                const data = JSON.parse(cached);
+                return { ...data, cached: true };
+            }
+        } catch (e) {
+            console.warn('Failed to read cached threat level:', e);
+        }
+        return { score: 0, status: 'SECURE', label: 'Loading...', cached: true };
+    },
+
     /**
      * Calculates the Hybrid Threat Score (Signal + Visual)
      * Replaces the old summation logic with a weighted ratio model.
      * Returns standard object: { score, status, label }
+     * Also saves result to localStorage for cache-first strategy.
      */
     calculateThreatLevel: async function () {
         // Ensure SupabaseManager is loaded before running
@@ -134,10 +155,17 @@ window.IntelligenceUtils = {
                 label = "HIGH 🔥";
             }
 
-            return { score: totalScore, status, label };
+            const result = { score: totalScore, status, label };
+            
+            try {
+                localStorage.setItem(this.CACHE_KEY, JSON.stringify(result));
+            } catch (e) {
+                console.warn('Failed to cache threat level:', e);
+            }
+            
+            return result;
         } catch (error) {
             console.error("Threat Calculation Failed:", error);
-            // Fail safe: Return 0 (Secure) rather than breaking UI
             return { score: 0, status: "SECURE", label: "Error ⚠️" };
         }
     },
