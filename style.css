@@ -410,7 +410,7 @@ body {
     }
 }
 
-/* Competitor Activity HUD Badge - Navy Glassmorphism */
+/* Competitor Activity HUD Badge - Black Glassmorphism */
 .aggression-hud {
     position: absolute;
     left: 50%;
@@ -419,16 +419,16 @@ body {
     align-items: center;
     gap: 8px;
     padding: 6px 14px;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 20px;
+    background: rgba(15, 15, 15, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
     font-family: 'Inter', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.02em;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
     z-index: 10;
 }
@@ -852,7 +852,9 @@ body {
     margin-bottom: 32px;
     border-radius: 20px;
     background: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     padding: 0;
@@ -863,7 +865,7 @@ body {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: fill;
     border-radius: 20px;
 }
 
@@ -1321,24 +1323,28 @@ body {
     width: 36px;
     height: 36px;
     border-radius: 12px;
-    background: var(--color-blue-600);
-    border: none;
+    background: rgba(15, 15, 15, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     cursor: pointer;
     color: var(--color-white);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
-    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .send-btn:hover:not(:disabled) {
-    background: var(--color-blue-700);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .send-btn:active:not(:disabled) {
-    transform: scale(0.95);
+    transform: translateY(0) scale(0.98);
 }
 
 .send-btn:disabled {
