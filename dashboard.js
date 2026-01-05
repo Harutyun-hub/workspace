@@ -166,6 +166,8 @@ async function loadFacebookAds(filters) {
         return;
     }
     
+    console.log('[Facebook] Filter range:', filters.dateFrom, 'to', filters.dateTo);
+    
     try {
         let query;
         
@@ -181,14 +183,14 @@ async function loadFacebookAds(filters) {
         }
         
         if (filters.dateFrom) {
-            query = query.gte('start_date_string', filters.dateFrom);
+            query = query.gte('snapshot_date', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('start_date_string', filters.dateTo);
+            query = query.lte('snapshot_date', filters.dateTo);
         }
         
-        const { data, error } = await query.order('start_date_string', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
         
         if (error) {
             console.error('Error loading Facebook Ads:', error);
@@ -196,7 +198,15 @@ async function loadFacebookAds(filters) {
             return;
         }
         
-        updateTableUI('facebook', data || []);
+        console.log('[Facebook] Rows found:', data?.length);
+        
+        const safeData = (data || []).map(row => ({
+            ...row,
+            ad_image_url: row.ad_image_url ?? null,
+            page_name: row.page_name ?? ''
+        }));
+        
+        updateTableUI('facebook', safeData);
         
     } catch (error) {
         console.error('Error loading Facebook Ads:', error);
@@ -209,6 +219,8 @@ async function loadGoogleAds(filters) {
         updateTableUI('google', []);
         return;
     }
+    
+    console.log('[Google] Filter range:', filters.dateFrom, 'to', filters.dateTo);
     
     try {
         let query;
@@ -225,14 +237,14 @@ async function loadGoogleAds(filters) {
         }
         
         if (filters.dateFrom) {
-            query = query.gte('first_show', filters.dateFrom);
+            query = query.gte('snapshot_date', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('first_show', filters.dateTo);
+            query = query.lte('snapshot_date', filters.dateTo);
         }
         
-        const { data, error } = await query.order('first_show', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
         
         if (error) {
             console.error('Error loading Google Ads:', error);
@@ -240,7 +252,15 @@ async function loadGoogleAds(filters) {
             return;
         }
         
-        updateTableUI('google', data || []);
+        console.log('[Google] Rows found:', data?.length);
+        
+        const safeData = (data || []).map(row => ({
+            ...row,
+            image_url: row.image_url ?? null,
+            handle: row.handle ?? ''
+        }));
+        
+        updateTableUI('google', safeData);
         
     } catch (error) {
         console.error('Error loading Google Ads:', error);
@@ -254,6 +274,8 @@ async function loadInstagramPosts(filters) {
         updateInstagramChart([]);
         return;
     }
+    
+    console.log('[Instagram] Filter range:', filters.dateFrom, 'to', filters.dateTo);
     
     try {
         let query;
@@ -285,8 +307,16 @@ async function loadInstagramPosts(filters) {
             return;
         }
         
-        updateTableUI('instagram', data || []);
-        updateInstagramChart(data || []);
+        console.log('[Instagram] Rows found:', data?.length);
+        
+        const safeData = (data || []).map(row => ({
+            ...row,
+            display_url: row.display_url ?? null,
+            username: row.username ?? ''
+        }));
+        
+        updateTableUI('instagram', safeData);
+        updateInstagramChart(safeData);
         
     } catch (error) {
         console.error('Error loading Instagram Posts:', error);
