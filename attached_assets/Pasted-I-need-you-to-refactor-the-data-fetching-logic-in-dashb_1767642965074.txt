@@ -1,0 +1,56 @@
+I need you to refactor the data fetching logic in `dashboard.js` to align with my new backend architecture.
+
+### THE GOAL
+Currently, the dashboard fetches data from three separate tables (`facebook_ads`, `google_ads`, `instagram_posts`).
+I have created a unified SQL View called `intel_events` that acts as a "Dumb Pipe" containing all this data.
+I want you to update the `loadAllData`, `loadFacebookAds`, `loadGoogleAds`, and `loadInstagramPosts` functions to query ONLY the `intel_events` view, while preserving the exact data format the UI expects.
+
+### NEW SOURCE OF TRUTH (`intel_events`)
+Instead of querying separate tables, you will query `intel_events` and filter by `source_table`.
+
+**Schema of `intel_events`:**
+- `source_table`: Enum ('facebook_ads', 'google_ads', 'instagram_posts')
+- `created_at`: The unified date field (Timestamp)
+- `headline`: The title/company handle/page name
+- `description`: The main text/caption/ad copy
+- `image_url`: The visual asset
+- `company_name`: The name of the company
+- `company_id`: UUID
+- `source_record_id`: ID of the original row
+
+### MAPPING REQUIREMENTS (Crucial!)
+The existing `updateTableUI` function expects specific column names for each source. You must map the `intel_events` columns back to these expected names inside the JavaScript loaders after fetching.
+
+**1. Facebook Ads Mapping:**
+Query: `intel_events` where `source_table` = 'facebook_ads'
+- UI Expects: `start_date_string`  <-- MAP FROM `created_at`
+- UI Expects: `page_name`          <-- MAP FROM `headline`
+- UI Expects: `ad_text`            <-- MAP FROM `description`
+- UI Expects: `ad_image_url`       <-- MAP FROM `image_url`
+
+**2. Google Ads Mapping:**
+Query: `intel_events` where `source_table` = 'google_ads'
+- UI Expects: `first_show`         <-- MAP FROM `created_at`
+- UI Expects: `handle`             <-- MAP FROM `headline` (or `company_name`)
+- UI Expects: `format`             <-- MAP FROM `description` (The view puts format info here)
+
+**3. Instagram Posts Mapping:**
+Query: `intel_events` where `source_table` = 'instagram_posts'
+- UI Expects: `created_at`         <-- MAP FROM `created_at`
+- UI Expects: `username`           <-- MAP FROM `headline`
+- UI Expects: `text`               <-- MAP FROM `description`
+- UI Expects: `display_url`        <-- MAP FROM `image_url`
+*Note:* If the chart logic requires `like_count` or `comments_count`, check if these exist in the view. If not, safeguard the chart code to handle missing metrics gracefully (e.g., default to 0).
+
+### IMPLEMENTATION STEPS
+1. **Modify Loaders:** Rewrite the fetch logic in `dashboard.js`. instead of `supabase.from('facebook_ads')`, use `supabase.from('intel_events').select('*').eq('source_table', 'facebook_ads')`.
+2. **Handle Filters:**
+   - **Date:** Apply the existing `.gte()` and `.lte()` logic to the `created_at` column (instead of `start_date_string` etc).
+   - **Company:** The existing filter uses `companies.company_key`.
+     - *Check:* Does `intel_events` join with `companies` and expose `company_key`?
+     - *Action:* If yes, use `.eq('companies.company_key', filters.company)`.
+     - *Fallback:* If not, you may need to fetch the `company_id` for the selected key first, or filter by `company_name`.
+3. **Data Transformation:** Before returning data to `updateTableUI`, run a `.map()` function to rename the fields as per the mapping requirements above.
+4. **Preserve UI:** Do NOT change `updateTableUI` or the HTML structure. The data passed to it must look exactly like the old data.
+
+Please generate the refactored code for `dashboard.js` focusing on the data loading functions.
