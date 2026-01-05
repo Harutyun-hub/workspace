@@ -1,55 +1,6 @@
 let instagramChart = null;
 let instagramChart2 = null;
 
-function mapToFacebookFormat(row) {
-    return {
-        ...row,
-        start_date_string: row.created_at,
-        end_date_string: row.created_at,
-        page_name: row.headline,
-        ad_text: row.description,
-        ad_image_url: row.image_url,
-        companies: {
-            name: row.company_name,
-            company_key: row.company_key,
-            logo_url: null
-        }
-    };
-}
-
-function mapToGoogleFormat(row) {
-    return {
-        ...row,
-        first_show: row.created_at,
-        last_show: row.created_at,
-        handle: row.headline,
-        format: row.description,
-        image_url: row.image_url,
-        companies: {
-            name: row.company_name,
-            company_key: row.company_key,
-            logo_url: null
-        }
-    };
-}
-
-function mapToInstagramFormat(row) {
-    return {
-        ...row,
-        created_at: row.created_at,
-        username: row.headline,
-        text: row.description,
-        display_url: row.image_url,
-        like_count: row.like_count || 0,
-        comment_count: row.comment_count || 0,
-        companies: {
-            name: row.company_name,
-            company_key: row.company_key,
-            logo_url: null
-        }
-    };
-}
-
 const tableConfigs = {
     facebook: {
         tableName: 'facebook_ads',
@@ -216,24 +167,28 @@ async function loadFacebookAds(filters) {
     }
     
     try {
-        let query = supabase
-            .from('intel_events')
-            .select('*')
-            .eq('source_table', 'facebook_ads');
+        let query;
         
         if (filters.company) {
-            query = query.eq('company_key', filters.company);
+            query = supabase
+                .from('facebook_ads')
+                .select('*, companies!inner(company_key, name, logo_url)')
+                .eq('companies.company_key', filters.company);
+        } else {
+            query = supabase
+                .from('facebook_ads')
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
-            query = query.gte('created_at', filters.dateFrom);
+            query = query.gte('start_date_string', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('created_at', filters.dateTo);
+            query = query.lte('start_date_string', filters.dateTo);
         }
         
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query.order('start_date_string', { ascending: false });
         
         if (error) {
             console.error('Error loading Facebook Ads:', error);
@@ -241,8 +196,7 @@ async function loadFacebookAds(filters) {
             return;
         }
         
-        const mappedData = (data || []).map(mapToFacebookFormat);
-        updateTableUI('facebook', mappedData);
+        updateTableUI('facebook', data || []);
         
     } catch (error) {
         console.error('Error loading Facebook Ads:', error);
@@ -257,24 +211,28 @@ async function loadGoogleAds(filters) {
     }
     
     try {
-        let query = supabase
-            .from('intel_events')
-            .select('*')
-            .eq('source_table', 'google_ads');
+        let query;
         
         if (filters.company) {
-            query = query.eq('company_key', filters.company);
+            query = supabase
+                .from('google_ads')
+                .select('*, companies!inner(company_key, name, logo_url)')
+                .eq('companies.company_key', filters.company);
+        } else {
+            query = supabase
+                .from('google_ads')
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
-            query = query.gte('created_at', filters.dateFrom);
+            query = query.gte('first_show', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('created_at', filters.dateTo);
+            query = query.lte('first_show', filters.dateTo);
         }
         
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query.order('first_show', { ascending: false });
         
         if (error) {
             console.error('Error loading Google Ads:', error);
@@ -282,8 +240,7 @@ async function loadGoogleAds(filters) {
             return;
         }
         
-        const mappedData = (data || []).map(mapToGoogleFormat);
-        updateTableUI('google', mappedData);
+        updateTableUI('google', data || []);
         
     } catch (error) {
         console.error('Error loading Google Ads:', error);
@@ -299,13 +256,17 @@ async function loadInstagramPosts(filters) {
     }
     
     try {
-        let query = supabase
-            .from('intel_events')
-            .select('*')
-            .eq('source_table', 'instagram_posts');
+        let query;
         
         if (filters.company) {
-            query = query.eq('company_key', filters.company);
+            query = supabase
+                .from('instagram_posts')
+                .select('*, companies!inner(company_key, name, logo_url)')
+                .eq('companies.company_key', filters.company);
+        } else {
+            query = supabase
+                .from('instagram_posts')
+                .select('*, companies(company_key, name, logo_url)');
         }
         
         if (filters.dateFrom) {
@@ -324,9 +285,8 @@ async function loadInstagramPosts(filters) {
             return;
         }
         
-        const mappedData = (data || []).map(mapToInstagramFormat);
-        updateTableUI('instagram', mappedData);
-        updateInstagramChart(mappedData);
+        updateTableUI('instagram', data || []);
+        updateInstagramChart(data || []);
         
     } catch (error) {
         console.error('Error loading Instagram Posts:', error);
@@ -424,7 +384,7 @@ function updateInstagramChart(data) {
     }
     
     const sortedData = [...data]
-        .filter(item => item.username)
+        .filter(item => item.username && (item.like_count || item.comment_count))
         .sort((a, b) => (b.like_count || 0) - (a.like_count || 0))
         .slice(0, 10);
     
