@@ -26,7 +26,6 @@ window.IntelligenceUtils = {
      * Also saves result to localStorage for cache-first strategy.
      */
     calculateThreatLevel: async function () {
-        // Ensure SupabaseManager is loaded before running
         if (
             typeof SupabaseManager === "undefined" ||
             !SupabaseManager.getClient
@@ -42,39 +41,20 @@ window.IntelligenceUtils = {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
 
         try {
-            // 1. PARALLEL FETCHING: Get all data needed for the calculation
-            // We fetch 3 things at once for performance
-            const [eventsResponse, screenshotResponse, velocityResponse] =
-                await Promise.all([
-                    // A. Fetch Today's Events (Ads)
-                    client
-                        .from("intel_events")
-                        .select("event_type, headline, created_at")
-                        .gte("created_at", startOfDay),
-
-                    // B. Fetch Today's Latest Screenshot Analysis
-                    client
-                        .from("company_screenshots")
-                        .select(
-                            "marketing_intent, ai_analysis, promotions_detected, created_at",
-                        )
-                        .gte("created_at", startOfDay)
-                        .order("created_at", { ascending: false })
-                        .limit(1)
-                        .single(),
-
-                    // C. Fetch Historical Baseline (7-Day Avg) via our new SQL Function
-                    client.rpc("get_ad_velocity_stats"),
-                ]);
+            const [eventsResponse, velocityResponse] = await Promise.all([
+                client
+                    .from("intel_events")
+                    .select("event_type, headline, created_at")
+                    .gte("created_at", startOfDay),
+                client.rpc("get_ad_velocity_stats"),
+            ]);
 
             const events = eventsResponse.data || [];
-            const latestScreenshot = screenshotResponse.data; // Can be null if no screenshot today
             const rawHistoricalAvg =
                 velocityResponse.data &&
                 velocityResponse.data.avg_daily_ads;
             const historicalAvg = rawHistoricalAvg && rawHistoricalAvg > 0 ? rawHistoricalAvg : 5;
 
-            // --- PART A: AD VELOCITY SCORE (The Engine - 60% Weight) ---
             const adEvents = events.filter(
                 (e) =>
                     e.event_type === "NEW_AD_LAUNCH" &&
@@ -87,62 +67,34 @@ window.IntelligenceUtils = {
 
             let adScore = 0;
             if (adRatio <= 1.0)
-                adScore = 10; // Normal Activity
+                adScore = 10;
             else if (adRatio <= 1.5)
-                adScore = 30; // Push (Elevated)
+                adScore = 30;
             else if (adRatio <= 2.0)
-                adScore = 50; // Spike (High)
-            else adScore = 60; // Flood (Max)
+                adScore = 50;
+            else adScore = 60;
 
-            // --- PART B: VISUAL CONTEXT SCORE (The Fuel - 40% Weight) ---
             let visualScore = 0;
             let isHighValuePromo = false;
 
-            if (latestScreenshot) {
-                // Check 1: Did AI detect a promo?
-                if (latestScreenshot.promotions_detected) {
-                    visualScore += 20;
-                }
+            const hasPromoDetected = events.some(e => e.event_type === "PROMO_DETECTED");
+            const hasScreenshotCaptured = events.some(e => e.event_type === "SCREENSHOT_CAPTURED");
 
-                // Check 2: "Aggressive" Keyword Search
-                // Fuses 'marketing_intent' and 'ai_analysis' text
-                const combinedText = (
-                    (latestScreenshot.marketing_intent || "") +
-                    " " +
-                    (latestScreenshot.ai_analysis || "")
-                ).toUpperCase();
-                const triggers = [
-                    "WELCOME BONUS",
-                    "BUN VENIT",
-                    "FREE SPINS",
-                    "ROTIRI",
-                    "NO DEPOSIT",
-                    "FARA DEPUNERE",
-                    "RON",
-                ];
-
-                const hasTrigger = triggers.some((t) =>
-                    combinedText.includes(t),
-                );
-                if (hasTrigger) {
-                    visualScore += 20; // Max out visual score
-                    isHighValuePromo = true;
-                }
+            if (hasPromoDetected) {
+                visualScore = 40;
+                isHighValuePromo = true;
+            } else if (hasScreenshotCaptured) {
+                visualScore = 10;
             }
 
-            // --- PART C: THE NUCLEAR OVERRIDE ---
-            // Logic: If massive ad spike (>2x) AND aggressive promo -> MAX THREAT
             let totalScore = adScore + visualScore;
 
             if (adRatio > 2.0 && isHighValuePromo) {
                 totalScore = 100;
             }
 
-            // Cap at 100
             totalScore = Math.min(totalScore, 100);
 
-            // --- PART D: DETERMINE STATUS ---
-            // Mapping score to UI labels (Green/Yellow/Red)
             let status, label;
             if (totalScore <= 30) {
                 status = "SECURE";

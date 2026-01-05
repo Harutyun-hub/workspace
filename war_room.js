@@ -288,9 +288,12 @@
                 } else if (item.event_type === 'SOCIAL_POST') {
                     type = 'organic';
                     source = 'social';
-                } else if (item.event_type === 'CREATIVE_UPDATE') {
+                } else if (item.event_type === 'PROMO_DETECTED') {
                     type = 'organic';
+                    source = 'creative';
                     isImportant = true;
+                } else if (item.event_type === 'SCREENSHOT_CAPTURED') {
+                    type = 'organic';
                     source = 'creative';
                 }
                 
@@ -580,7 +583,8 @@
         const eventTypeIcon = {
             'NEW_AD_LAUNCH': '📢',
             'SOCIAL_POST': '📱',
-            'CREATIVE_UPDATE': '🎨'
+            'PROMO_DETECTED': '🎁',
+            'SCREENSHOT_CAPTURED': '📸'
         };
         
         const severityIcon = {
@@ -592,7 +596,8 @@
         const eventTypeLabel = {
             'NEW_AD_LAUNCH': 'AD LAUNCH',
             'SOCIAL_POST': 'SOCIAL',
-            'CREATIVE_UPDATE': 'CREATIVE'
+            'PROMO_DETECTED': 'PROMO FOUND',
+            'SCREENSHOT_CAPTURED': 'VISUAL UPDATE'
         };
         
         const typeLabel = item.type === 'paid' ? 'PAID' : 'ORGANIC';
