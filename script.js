@@ -38,6 +38,19 @@ let appLifecycleReady = false;
 const APP_CONTEXT = 'App';
 const CHAT_CONTEXT = 'Chat';
 
+function isAuthError(error) {
+    if (!error) return false;
+    const code = error?.code || error?.status;
+    const message = (error?.message || '').toLowerCase();
+    return code === 401 || 
+           code === 'PGRST301' || 
+           code === 'PGRST302' ||
+           message.includes('jwt') ||
+           message.includes('token') ||
+           message.includes('unauthorized') ||
+           message.includes('not authenticated');
+}
+
 // Lifecycle management for cleanup
 let currentTypingInterval = null;
 let currentLoadAbortController = null;
@@ -1125,16 +1138,6 @@ async function loadConversation(conversationId) {
         await waitForAuthReady();
     }
     
-    // Verify session is valid before proceeding
-    if (typeof ensureValidSession === 'function') {
-        const session = await ensureValidSession();
-        if (!session) {
-            Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
-            isLoadingConversation = false;
-            return;
-        }
-    }
-    
     const messagesContainer = document.getElementById('messages');
     const previousConversationId = currentConversationId;
     
@@ -1206,6 +1209,14 @@ async function loadConversation(conversationId) {
             clearTimeout(loadTimeout);
             return;
         }
+        
+        // Handle auth errors reactively - redirect to login if session expired
+        if (isAuthError(error)) {
+            Logger.warn('Auth error detected, redirecting to login', 'LoadConv', { loadRequestId });
+            window.location.href = '/login.html';
+            return;
+        }
+        
         Logger.error(error, 'LoadConv', { loadRequestId });
         // Only show error if this is still the current load
         if (thisLoadId === currentLoadId) {
@@ -1249,6 +1260,7 @@ async function loadConversationHistory() {
         conversations.forEach(conv => {
             const chatItem = document.createElement('div');
             chatItem.className = 'chat-item';
+            chatItem.dataset.conversationId = conv.id;
             if (conv.id === currentConversationId) {
                 chatItem.classList.add('active');
             }
@@ -1379,28 +1391,57 @@ async function handleRenameConversation(conversationId, currentTitle) {
 }
 
 async function handleDeleteConversation(conversationId) {
+    const confirmed = confirm('Are you sure you want to delete this conversation? This action cannot be undone.');
+    if (!confirmed) return;
+    
+    document.querySelectorAll('.chat-item-dropdown').forEach(d => d.classList.remove('show'));
+    document.querySelectorAll('.chat-item-menu-btn').forEach(b => b.classList.remove('active'));
+    
+    const user = getCurrentUser();
+    const userId = user?.id;
+    const chatItem = document.querySelector(`.chat-item[data-conversation-id="${conversationId}"]`);
+    const wasCurrentConversation = conversationId === currentConversationId;
+    const previousConversationId = currentConversationId;
+    const previousSessionId = currentSessionId;
+    
+    if (chatItem) {
+        chatItem.style.opacity = '0.5';
+        chatItem.style.pointerEvents = 'none';
+    }
+    
     try {
-        const confirmed = confirm('Are you sure you want to delete this conversation? This action cannot be undone.');
-        if (!confirmed) return;
-        
-        document.querySelectorAll('.chat-item-dropdown').forEach(d => d.classList.remove('show'));
-        document.querySelectorAll('.chat-item-menu-btn').forEach(b => b.classList.remove('active'));
-        
-        const result = await deleteConversation(conversationId);
+        const result = await deleteConversation(conversationId, userId);
         if (!result.success) {
             throw new Error(result.error?.message || 'Failed to delete conversation');
         }
         
-        if (conversationId === currentConversationId) {
+        if (wasCurrentConversation) {
             currentConversationId = null;
             currentSessionId = null;
             document.getElementById('messages').innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa0a6;">Select a conversation or start a new chat</div>';
+            showWelcomeMessage();
+        }
+        
+        if (typeof QueryCache !== 'undefined') {
+            QueryCache.invalidate('user_conversations');
         }
         
         await loadConversationHistory();
         showToast('Conversation deleted successfully', 'success');
     } catch (error) {
         Logger.error(error, CHAT_CONTEXT, { operation: 'handleDeleteConversation' });
+        
+        if (chatItem) {
+            chatItem.style.opacity = '1';
+            chatItem.style.pointerEvents = 'auto';
+        }
+        
+        if (wasCurrentConversation && previousConversationId) {
+            currentConversationId = previousConversationId;
+            currentSessionId = previousSessionId;
+            loadConversation(previousConversationId).catch(() => {});
+        }
+        
         showToast('Failed to delete conversation', 'error');
     }
 }

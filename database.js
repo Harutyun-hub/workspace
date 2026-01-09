@@ -212,7 +212,7 @@ async function updateConversationTitle(conversationId, title) {
     }
 }
 
-async function deleteConversation(conversationId) {
+async function deleteConversation(conversationId, userId = null) {
     const requestId = generateRequestId();
     Logger.info(`Deleting conversation: ${conversationId}`, DB_CONTEXT, { requestId });
     
@@ -229,7 +229,7 @@ async function deleteConversation(conversationId) {
             return createErrorResult(error);
         }
         
-        invalidateConversationCache(conversationId);
+        invalidateConversationCache(conversationId, userId);
         
         Logger.info('Conversation deleted successfully', DB_CONTEXT, { requestId });
         return createSuccessResult(true);
