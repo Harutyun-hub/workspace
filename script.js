@@ -240,9 +240,9 @@ const debouncedLoadConversation = debounce((conversationId) => {
 function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         Logger.info(`Tab visible, current state: ${ChatStateMachine.getState()}`, 'Visibility');
-        // Mark auth as potentially settling - Supabase may refresh token
-        if (typeof markAuthSettling === 'function') {
-            markAuthSettling();
+        // Non-blocking background session refresh - does NOT block UI
+        if (typeof refreshSessionBackground === 'function') {
+            refreshSessionBackground();
         }
         // Re-sync UI in case it got out of sync
         ChatStateMachine.syncUI();
@@ -1120,12 +1120,18 @@ async function loadConversation(conversationId) {
     
     Logger.info(`START loading conversation: ${conversationId}`, 'LoadConv', { loadRequestId });
     
-    // Wait for auth to settle if needed (after visibility change)
-    if (typeof waitForAuthReady === 'function') {
-        await waitForAuthReady();
+    // Fast path: If currentUser exists, skip the auth wait (but still validate session)
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) {
+        // Only wait if there's an active auth operation (login/logout/initial load)
+        if (typeof waitForAuthReady === 'function') {
+            await waitForAuthReady();
+        }
+    } else {
+        Logger.info('User already authenticated, skipping auth wait', 'LoadConv', { loadRequestId });
     }
     
-    // Verify session is valid before proceeding
+    // Always verify session is valid before proceeding
     if (typeof ensureValidSession === 'function') {
         const session = await ensureValidSession();
         if (!session) {
