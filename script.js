@@ -446,8 +446,8 @@ async function loadMessages(conversationIdParam) {
     console.log(`[DEBUG] loadMessages called with convId: ${convId}, currentConversationId: ${currentConversationId}`);
     
     if (!convId) {
-        console.log(`[DEBUG] loadMessages: No conversation ID, returning empty`);
-        return [];
+        console.error(`[ERROR] loadMessages: No conversation ID provided! This is a bug.`);
+        throw new Error('No Conversation ID provided to loadMessages');
     }
     
     try {
@@ -1137,13 +1137,18 @@ async function loadConversation(conversationId) {
     }
     
     // Always verify session is valid before proceeding
+    console.log(`[DEBUG] Calling ensureValidSession...`);
     if (typeof ensureValidSession === 'function') {
         const session = await ensureValidSession();
+        console.log(`[DEBUG] ensureValidSession returned: ${session ? 'valid session' : 'null/invalid'}`);
         if (!session) {
+            console.error(`[ERROR] No valid session, aborting load for ${conversationId}`);
             Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
             isLoadingConversation = false;
             return;
         }
+    } else {
+        console.log(`[DEBUG] ensureValidSession function not available, skipping session check`);
     }
     
     const messagesContainer = document.getElementById('messages');
@@ -1274,10 +1279,12 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
+                console.log(`[DEBUG] Chat item clicked: ${conv.id} - "${conv.title}"`);
                 cancelConversationLoad();
                 isLoadingConversation = false;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
+                console.log(`[DEBUG] Calling debouncedLoadConversation with: ${conv.id}`);
                 debouncedLoadConversation(conv.id);
             });
             
