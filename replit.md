@@ -26,12 +26,12 @@ The application is built with vanilla HTML, CSS, and JavaScript, emphasizing a g
 
 ### Technical Implementations
 - **Authentication**: Supabase Auth with Google OAuth.
-- **Database Architecture**: Two-database system utilizing Supabase PostgreSQL for user data, conversations, messages, and analytics (with RLS), and n8n Redis for AI conversation context and memory. Features a central `companies` table for multi-company support. Messages table includes `content_text` column for RAG-optimized plain text extraction. Conversations table includes `summary` column for quick context retrieval.
+- **Database Architecture**: Two-database system utilizing Supabase PostgreSQL for user data, conversations, messages, and analytics (with RLS), and n8n Redis for AI conversation context and memory. Features a central `companies` table for multi-company support.
 - **Company-Based Filtering**: Canonical `company_key` for identifying companies across all data, with logo display and company selectors in UI.
 - **AI Integration**: n8n webhook endpoint for contextual AI responses based on `sessionId`, `userId`, and `companyKey`.
 - **Smart Rendering System**: Modular `message-renderer.js` supporting rich text (Markdown), Chart.js charts, data tables with auto-column detection and status indicators, and media galleries.
 - **Performance Optimizations**: SupabaseManager singleton, QueryCache for memory/localStorage caching, batched logging, server-side config injection, and debouncing for UI interactions.
-- **Robust Message Saving**: Messages capture conversation/user IDs at send time with retry logic (3 attempts, 1s delay). Role normalization stores 'assistant' for n8n/RAG compatibility, remaps to 'ai' for UI rendering. Extracts plain text from AI JSON responses into `content_text` column for efficient RAG queries.
+- **Robust Message Saving**: Messages capture conversation/user IDs at send time, background task tracking, and browser `beforeunload` warning.
 - **Enterprise Chat State Machine**: Manages chat states (IDLE, SENDING, AWAITING_AI, RENDERING, ERROR) for UI sync, prevents duplicate sends, and includes global safety watchdog timeouts.
 - **Application Lifecycle Manager**: Ensures strict initialization order (DOM, Auth, Chat) with promise-based execution and global error boundaries.
 - **Standardized Database Layer**: All Supabase operations return `{ success, data, error }` objects for consistent error handling.

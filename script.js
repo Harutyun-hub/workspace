@@ -233,7 +233,6 @@ function updateBeforeUnloadHandler() {
 
 // Note: Uses debounce from utils.js
 const debouncedLoadConversation = debounce((conversationId) => {
-    console.log(`%c[DEBUG DEBOUNCE] ${new Date().toISOString()} Debounce fired for: ${conversationId}`, 'background: #0ff; color: #000; font-weight: bold;');
     loadConversation(conversationId);
 }, 300);
 
@@ -241,10 +240,8 @@ const debouncedLoadConversation = debounce((conversationId) => {
 function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         Logger.info(`Tab visible, current state: ${ChatStateMachine.getState()}`, 'Visibility');
-        // Only mark auth as settling if no user is logged in
-        // This prevents blocking conversation loads when user is already authenticated
-        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        if (typeof markAuthSettling === 'function' && !user) {
+        // Mark auth as potentially settling - Supabase may refresh token
+        if (typeof markAuthSettling === 'function') {
             markAuthSettling();
         }
         // Re-sync UI in case it got out of sync
@@ -424,48 +421,23 @@ async function saveMessage(role, content, conversationId = null, userId = null) 
     
     if (!uId || !convId) {
         Logger.error(new Error('No user or conversation'), CHAT_CONTEXT);
-        throw new Error('Missing user or conversation ID - cannot save message');
+        return;
     }
-    
-    const startTime = Date.now();
-    Logger.info(`Starting save for ${role} message`, CHAT_CONTEXT, { 
-        conversationId: convId, 
-        contentLength: content?.length 
-    });
     
     try {
         const result = await withRetry(
             async () => {
                 const saveResult = await withTimeout(saveMessageToSupabase(convId, uId, role, content), SAVE_TIMEOUT_MS);
                 if (!saveResult.success) {
-                    const errorMsg = saveResult.error?.message || 'Save failed';
-                    Logger.warn(`Save attempt failed: ${errorMsg}`, CHAT_CONTEXT, { role, conversationId: convId });
-                    throw new Error(errorMsg);
+                    throw new Error(saveResult.error?.message || 'Save failed');
                 }
                 return saveResult;
             },
             MAX_RETRY_ATTEMPTS,
             RETRY_DELAY_MS
         );
-        
-        const elapsed = Date.now() - startTime;
-        Logger.info(`Message saved successfully`, CHAT_CONTEXT, { 
-            role, 
-            conversationId: convId, 
-            elapsedMs: elapsed 
-        });
-        
-        return result;
     } catch (error) {
-        const elapsed = Date.now() - startTime;
-        Logger.error(error, CHAT_CONTEXT, { 
-            operation: 'saveMessage', 
-            role, 
-            conversationId: convId,
-            elapsedMs: elapsed,
-            retryAttempts: MAX_RETRY_ATTEMPTS
-        });
-        throw error;
+        Logger.error(error, CHAT_CONTEXT, { operation: 'saveMessage' });
     }
 }
 
@@ -1004,16 +976,14 @@ async function handleSendMessage() {
     ChatStateMachine.setState(ChatState.SENDING, 'User sent message');
     
     try {
-        const userMessage = message;
-        const titleForConv = userMessage.length > 50 ? userMessage.substring(0, 50) + '...' : userMessage;
-        
         if (!currentConversationId) {
-            await createNewConversation(titleForConv);
+            await createNewConversation();
             if (!currentConversationId) {
                 throw new Error('Failed to create conversation');
             }
         }
         
+        const userMessage = message;
         input.value = '';
         
         const convIdAtSend = currentConversationId;
@@ -1050,35 +1020,24 @@ async function handleSendMessage() {
                 await aiMessageDiv.typingPromise;
             }
             
-            // Save AI message with guaranteed completion (not abandoned on timeout)
+            const titleForConv = userMessage.length > 50 ? userMessage.substring(0, 50) + '...' : userMessage;
+            
+            // Save AI message (don't block on this)
             const aiSavePromise = saveMessage('ai', aiResponse, convIdAtSend, userIdAtSend).catch(error => {
                 Logger.error(error, 'SendMessage', { operation: 'saveAIMessage' });
                 return null;
             });
             
-            // Wait for both saves to complete (with internal retry logic in saveMessage)
-            // No longer using Promise.race to avoid losing saves
-            try {
-                const [userSaveResult, aiSaveResult] = await Promise.all([userSavePromise, aiSavePromise]);
-                
-                if (userSaveResult) {
-                    Logger.info('User message saved', 'SendMessage', { messageId: userSaveResult?.data?.id });
-                } else {
-                    Logger.error(new Error('User message save returned null'), 'SendMessage');
-                }
-                
-                if (aiSaveResult) {
-                    Logger.info('AI message saved', 'SendMessage', { messageId: aiSaveResult?.data?.id });
-                } else {
-                    Logger.error(new Error('AI message save returned null'), 'SendMessage');
-                }
-                
-                // Update conversation title if it's still null/empty (first message case)
-                await updateConversationTitleFromMessage(convIdAtSend, titleForConv);
-                
-            } catch (saveError) {
-                Logger.error(saveError, 'SendMessage', { operation: 'saveBothMessages' });
-            }
+            // Wait for saves with timeout (don't let this block forever)
+            await Promise.race([
+                Promise.all([userSavePromise, aiSavePromise]),
+                new Promise(resolve => setTimeout(resolve, 10000)) // Max 10s wait for saves
+            ]);
+            
+            // Update title in background (non-blocking)
+            updateConversationTitleIfNeeded(convIdAtSend, titleForConv).catch(err => {
+                Logger.warn(`Title update failed: ${err.message}`, 'SendMessage');
+            });
             
         } catch (error) {
             typingMessage.remove();
@@ -1107,7 +1066,7 @@ async function handleSendMessage() {
     }
 }
 
-async function createNewConversation(initialTitle = null) {
+async function createNewConversation() {
     const user = getCurrentUser();
     if (!user) {
         Logger.error(new Error('No user logged in'), CHAT_CONTEXT);
@@ -1116,7 +1075,7 @@ async function createNewConversation(initialTitle = null) {
     
     try {
         currentSessionId = generateUUID();
-        const result = await createConversation(user.id, initialTitle, currentSessionId);
+        const result = await createConversation(user.id, null, currentSessionId);
         if (!result.success) {
             Logger.error(new Error(result.error?.message || 'Failed to create conversation'), CHAT_CONTEXT);
             return null;
@@ -1148,56 +1107,7 @@ async function updateConversationTitleIfNeeded(conversationId, title) {
     }
 }
 
-const titledConversations = new Set();
-
-async function updateConversationTitleFromMessage(conversationId, title) {
-    // Skip if we've already titled this conversation in this session
-    if (titledConversations.has(conversationId)) {
-        return;
-    }
-    
-    try {
-        // Lightweight query - only fetches the title field
-        const result = await getConversationTitle(conversationId);
-        if (!result.success) {
-            Logger.warn('Could not fetch conversation title', CHAT_CONTEXT);
-            return;
-        }
-        
-        const currentTitle = result.data;
-        
-        // Only update if title is null, empty, or "New chat"
-        if (!currentTitle || currentTitle.trim() === '' || currentTitle === 'New chat') {
-            Logger.info(`Updating conversation title to: ${title}`, CHAT_CONTEXT, { conversationId });
-            
-            const updateResult = await updateConversationTitle(conversationId, title);
-            if (updateResult.success) {
-                // Mark as titled to avoid future redundant checks
-                titledConversations.add(conversationId);
-                
-                // Update sidebar immediately
-                const updated = updateSidebarTitleLocally(conversationId, title);
-                if (!updated) {
-                    // Reload sidebar if local update failed
-                    await loadConversationHistory();
-                }
-                Logger.info('Conversation title updated successfully', CHAT_CONTEXT);
-            } else {
-                Logger.warn('Failed to update conversation title', CHAT_CONTEXT, { error: updateResult.error });
-            }
-        } else {
-            // Title already exists, mark as titled
-            titledConversations.add(conversationId);
-        }
-    } catch (error) {
-        Logger.warn(`Title update from message skipped: ${error.message}`, CHAT_CONTEXT);
-    }
-}
-
 async function loadConversation(conversationId) {
-    const loadStartTime = Date.now();
-    console.log(`%c[DEBUG LOAD] ${new Date().toISOString()} loadConversation START: ${conversationId}`, 'background: #0f0; color: #000; font-weight: bold;');
-    
     // Cancel any existing load operation and reset loading state
     cancelConversationLoad();
     
@@ -1210,33 +1120,19 @@ async function loadConversation(conversationId) {
     
     Logger.info(`START loading conversation: ${conversationId}`, 'LoadConv', { loadRequestId });
     
-    // Skip auth checks if we already have a current user - this is the fast path
-    const existingUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    console.log(`[DEBUG LOAD] Quick user check: hasUser=${!!existingUser}`);
+    // Wait for auth to settle if needed (after visibility change)
+    if (typeof waitForAuthReady === 'function') {
+        await waitForAuthReady();
+    }
     
-    if (!existingUser) {
-        // Only do expensive auth checks if we don't have a user
-        console.log(`[DEBUG LOAD] Step 1: waitForAuthReady check (${Date.now() - loadStartTime}ms)`);
-        if (typeof waitForAuthReady === 'function') {
-            const authWaitStart = Date.now();
-            await waitForAuthReady();
-            console.log(`[DEBUG LOAD] waitForAuthReady completed in ${Date.now() - authWaitStart}ms`);
+    // Verify session is valid before proceeding
+    if (typeof ensureValidSession === 'function') {
+        const session = await ensureValidSession();
+        if (!session) {
+            Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
+            isLoadingConversation = false;
+            return;
         }
-        
-        console.log(`[DEBUG LOAD] Step 2: ensureValidSession check (${Date.now() - loadStartTime}ms)`);
-        if (typeof ensureValidSession === 'function') {
-            const sessionStart = Date.now();
-            const session = await ensureValidSession();
-            console.log(`[DEBUG LOAD] ensureValidSession completed in ${Date.now() - sessionStart}ms, hasSession: ${!!session}`);
-            if (!session) {
-                console.log(`%c[DEBUG LOAD] ABORT: No valid session`, 'background: #f00; color: #fff; font-weight: bold;');
-                Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
-                isLoadingConversation = false;
-                return;
-            }
-        }
-    } else {
-        console.log(`[DEBUG LOAD] Skipping auth checks - user already exists (fast path)`);
     }
     
     const messagesContainer = document.getElementById('messages');
@@ -1253,24 +1149,18 @@ async function loadConversation(conversationId) {
     }, 30000);
     
     try {
-        console.log(`[DEBUG LOAD] Step 3: Starting data fetch (${Date.now() - loadStartTime}ms)`);
         hideWelcomeMessage();
         messagesContainer.innerHTML = `<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="${NIMBUS_AVATAR_BASE64}" alt="Loading"></div></div>`;
         
         // Check if this load is still current before making request
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
-            console.log(`[DEBUG LOAD] CANCELLED before getConversation (thisLoadId: ${thisLoadId}, currentLoadId: ${currentLoadId})`);
             throw new Error('Load cancelled');
         }
         
-        console.log(`[DEBUG LOAD] Step 4: Calling getConversation (${Date.now() - loadStartTime}ms)`);
-        const getConvStart = Date.now();
         Logger.info(`Calling getConversation...`, CHAT_CONTEXT, { loadRequestId });
         const result = await getConversation(conversationId);
-        console.log(`[DEBUG LOAD] getConversation completed in ${Date.now() - getConvStart}ms, success: ${result.success}`);
         
         if (!result.success) {
-            console.log(`[DEBUG LOAD] getConversation FAILED:`, result.error);
             throw new Error(result.error?.message || 'Failed to load conversation');
         }
         
@@ -1279,7 +1169,6 @@ async function loadConversation(conversationId) {
         
         // Check if this load is still current after getting conversation
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
-            console.log(`[DEBUG LOAD] CANCELLED after getConversation`);
             throw new Error('Load cancelled');
         }
         
@@ -1290,16 +1179,12 @@ async function loadConversation(conversationId) {
         
         messagesContainer.innerHTML = '';
         
-        console.log(`[DEBUG LOAD] Step 5: Calling loadMessages (${Date.now() - loadStartTime}ms)`);
-        const loadMsgStart = Date.now();
         Logger.info(`Calling loadMessages...`, 'LoadConv', { loadRequestId });
         const messages = await loadMessages();
-        console.log(`[DEBUG LOAD] loadMessages completed in ${Date.now() - loadMsgStart}ms, count: ${messages.length}`);
         Logger.info(`loadMessages returned ${messages.length} messages`, 'LoadConv', { loadRequestId });
         
         // Check if this load is still current after loading messages
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
-            console.log(`[DEBUG LOAD] CANCELLED after loadMessages`);
             throw new Error('Load cancelled');
         }
         
@@ -1312,18 +1197,15 @@ async function loadConversation(conversationId) {
             });
         }
         
-        console.log(`%c[DEBUG LOAD] ${new Date().toISOString()} loadConversation COMPLETE in ${Date.now() - loadStartTime}ms`, 'background: #0f0; color: #000; font-weight: bold;');
         Logger.info(`END - conversation loaded successfully`, 'LoadConv', { loadRequestId });
         
     } catch (error) {
         if (error.message === 'Load cancelled') {
-            console.log(`[DEBUG LOAD] Load cancelled (load ID: ${thisLoadId})`);
             Logger.info(`Cancelled (load ID: ${thisLoadId})`, 'LoadConv', { loadRequestId });
             // Don't reset state here - a newer load may be in progress
             clearTimeout(loadTimeout);
             return;
         }
-        console.log(`%c[DEBUG LOAD] ERROR after ${Date.now() - loadStartTime}ms:`, 'background: #f00; color: #fff; font-weight: bold;', error);
         Logger.error(error, 'LoadConv', { loadRequestId });
         // Only show error if this is still the current load
         if (thisLoadId === currentLoadId) {
@@ -1337,7 +1219,6 @@ async function loadConversation(conversationId) {
         if (thisLoadId === currentLoadId) {
             isLoadingConversation = false;
             currentLoadAbortController = null;
-            console.log(`[DEBUG LOAD] Finally: reset loading state (total time: ${Date.now() - loadStartTime}ms)`);
         }
     }
 }
@@ -1368,7 +1249,6 @@ async function loadConversationHistory() {
         conversations.forEach(conv => {
             const chatItem = document.createElement('div');
             chatItem.className = 'chat-item';
-            chatItem.dataset.conversationId = conv.id;
             if (conv.id === currentConversationId) {
                 chatItem.classList.add('active');
             }
@@ -1377,16 +1257,10 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
-                const clickTime = Date.now();
-                console.log(`%c[DEBUG CLICK] ${new Date().toISOString()} Chat clicked: ${conv.id}`, 'background: #ff0; color: #000; font-weight: bold;');
-                console.log(`[DEBUG CLICK] isLoadingConversation: ${isLoadingConversation}, currentConversationId: ${currentConversationId}`);
-                
                 cancelConversationLoad();
                 isLoadingConversation = false;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
-                
-                console.log(`[DEBUG CLICK] Calling debouncedLoadConversation for: ${conv.id} (took ${Date.now() - clickTime}ms to reach debounce)`);
                 debouncedLoadConversation(conv.id);
             });
             
@@ -1517,33 +1391,13 @@ async function handleDeleteConversation(conversationId) {
             throw new Error(result.error?.message || 'Failed to delete conversation');
         }
         
-        // Remove from titledConversations cache
-        titledConversations.delete(conversationId);
-        
-        // Remove DOM element immediately for instant feedback
-        const chatItem = document.querySelector(`.chat-item[data-conversation-id="${conversationId}"]`);
-        if (chatItem) {
-            chatItem.remove();
-        }
-        
         if (conversationId === currentConversationId) {
             currentConversationId = null;
             currentSessionId = null;
             document.getElementById('messages').innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa0a6;">Select a conversation or start a new chat</div>';
-            showWelcomeMessage();
         }
         
-        // Invalidate user conversations cache to ensure fresh data on next load
-        if (typeof QueryCache !== 'undefined') {
-            const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            if (user?.id) {
-                QueryCache.invalidate(`user_conversations:${user.id}`);
-            }
-        }
-        
-        // Refresh sidebar to ensure proper order and sync
         await loadConversationHistory();
-        
         showToast('Conversation deleted successfully', 'success');
     } catch (error) {
         Logger.error(error, CHAT_CONTEXT, { operation: 'handleDeleteConversation' });

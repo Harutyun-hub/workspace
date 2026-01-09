@@ -82,7 +82,6 @@ async function _performAuthInit() {
                 await ensureUserExists(session.user);
             } else if (event === 'SIGNED_OUT') {
                 Logger.info('User signed out', AUTH_CONTEXT);
-                console.log(`%c[DEBUG AUTH] SIGNED_OUT event - clearing currentUser`, 'background: #f00; color: #fff; font-weight: bold;');
                 currentUser = null;
             } else if (event === 'TOKEN_REFRESHED') {
                 Logger.info('Token refreshed successfully', AUTH_CONTEXT);
@@ -97,7 +96,6 @@ async function _performAuthInit() {
             }
             
             if (!session && event !== 'SIGNED_OUT' && event !== 'INITIAL_SESSION') {
-                console.log(`%c[DEBUG AUTH] Session became NULL during event: ${event}`, 'background: #f00; color: #fff; font-weight: bold;');
                 Logger.warn(`Session became null unexpectedly during event: ${event}`, AUTH_CONTEXT);
             }
             
@@ -122,34 +120,14 @@ function markAuthSettling() {
 }
 
 async function waitForAuthReady() {
-    console.log(`[DEBUG AUTH] waitForAuthReady called, authSettling: ${authSettling}, hasCurrentUser: ${!!currentUser}`);
-    
     if (!authSettling) {
-        console.log(`[DEBUG AUTH] authSettling is false, returning immediately`);
         return true;
     }
     
-    // Quick check: if we already have a valid session, skip waiting
-    if (currentUser && authSupabase) {
-        try {
-            const { data: { session } } = await authSupabase.auth.getSession();
-            if (session) {
-                console.log(`[DEBUG AUTH] Session already valid, skipping wait`);
-                Logger.info('Session already valid, skipping auth settle wait', AUTH_CONTEXT);
-                authSettling = false;
-                return true;
-            }
-        } catch (e) {
-            console.log(`[DEBUG AUTH] Error checking session:`, e);
-            // Ignore errors, continue with normal wait
-        }
-    }
-    
-    console.log(`[DEBUG AUTH] Starting wait loop...`);
     Logger.info('Waiting for auth to settle...', AUTH_CONTEXT);
     
-    const maxWait = 500; // Reduced from 2000ms to 500ms
-    const checkInterval = 50; // Check more frequently
+    const maxWait = 2000;
+    const checkInterval = 100;
     let waited = 0;
     
     while (authSettling && waited < maxWait) {
@@ -158,33 +136,27 @@ async function waitForAuthReady() {
     }
     
     if (authSettling) {
-        console.log(`[DEBUG AUTH] Wait TIMEOUT after ${waited}ms, forcing authSettling=false`);
-        Logger.info('Auth settle timeout, proceeding anyway', AUTH_CONTEXT, { waitedMs: waited });
+        Logger.warn('Auth did not settle in time, forcing ready', AUTH_CONTEXT, { waitedMs: waited });
         authSettling = false;
     } else {
-        console.log(`[DEBUG AUTH] Auth settled naturally after ${waited}ms`);
         Logger.info(`Auth settled after ${waited}ms`, AUTH_CONTEXT);
     }
+    
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     return true;
 }
 
 async function ensureValidSession() {
-    console.log(`[DEBUG AUTH] ensureValidSession called, hasSupabase: ${!!authSupabase}`);
-    
     if (!authSupabase) {
-        console.log(`[DEBUG AUTH] No Supabase client!`);
         Logger.warn('ensureValidSession: No Supabase client', AUTH_CONTEXT);
         return null;
     }
     
     try {
-        const startTime = Date.now();
         const { data: { session }, error } = await authSupabase.auth.getSession();
-        console.log(`[DEBUG AUTH] getSession took ${Date.now() - startTime}ms, hasSession: ${!!session}, error: ${error?.message || 'none'}`);
         
         if (error) {
-            console.log(`[DEBUG AUTH] Session error:`, error);
             Logger.error(error, AUTH_CONTEXT, { operation: 'ensureValidSession' });
             return null;
         }
