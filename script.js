@@ -456,20 +456,32 @@ async function saveMessage(role, content, conversationId = null, userId = null) 
         return;
     }
     
-    try {
-        const result = await withRetry(
-            async () => {
-                const saveResult = await withTimeout(saveMessageToSupabase(convId, uId, role, content), SAVE_TIMEOUT_MS);
-                if (!saveResult.success) {
-                    throw new Error(saveResult.error?.message || 'Save failed');
-                }
-                return saveResult;
-            },
-            MAX_RETRY_ATTEMPTS,
-            RETRY_DELAY_MS
-        );
-    } catch (error) {
-        Logger.error(error, CHAT_CONTEXT, { operation: 'saveMessage' });
+    const clientMessageId = generateUUID();
+    
+    if (typeof PendingMessageQueue !== 'undefined') {
+        PendingMessageQueue.enqueue({
+            clientMessageId,
+            conversationId: convId,
+            userId: uId,
+            role,
+            content
+        });
+    } else {
+        try {
+            const result = await withRetry(
+                async () => {
+                    const saveResult = await withTimeout(saveMessageToSupabase(convId, uId, role, content, clientMessageId), SAVE_TIMEOUT_MS);
+                    if (!saveResult.success) {
+                        throw new Error(saveResult.error?.message || 'Save failed');
+                    }
+                    return saveResult;
+                },
+                MAX_RETRY_ATTEMPTS,
+                RETRY_DELAY_MS
+            );
+        } catch (error) {
+            Logger.error(error, CHAT_CONTEXT, { operation: 'saveMessage' });
+        }
     }
 }
 
@@ -1688,6 +1700,12 @@ async function initApp() {
             userId: user?.id,
             email: user?.email 
         });
+        
+        // Initialize message queue for reliable persistence
+        if (typeof PendingMessageQueue !== 'undefined') {
+            PendingMessageQueue.init();
+            Logger.info('PendingMessageQueue initialized', APP_CONTEXT);
+        }
         
         // Step 3: Initialize chat ONLY after auth is confirmed
         Logger.info('Step 3: Initializing chat module...', APP_CONTEXT);

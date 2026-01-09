@@ -241,13 +241,14 @@ async function deleteConversation(conversationId, userId = null) {
     }
 }
 
-async function saveMessageToSupabase(conversationId, userId, role, content) {
+async function saveMessageToSupabase(conversationId, userId, role, content, clientMessageId = null) {
     const requestId = generateRequestId();
     Logger.info(`Saving message`, DB_CONTEXT, { 
         requestId, 
         conversationId, 
         role, 
-        contentLength: content?.length 
+        contentLength: content?.length,
+        clientMessageId
     });
     
     try {
@@ -258,14 +259,20 @@ async function saveMessageToSupabase(conversationId, userId, role, content) {
             contentToSave = JSON.stringify(content);
         }
         
+        const messageData = {
+            conversation_id: conversationId,
+            user_id: userId,
+            role: role,
+            content: contentToSave
+        };
+        
+        if (clientMessageId) {
+            messageData.client_message_id = clientMessageId;
+        }
+        
         const { data, error } = await supabase
             .from('messages')
-            .insert([{
-                conversation_id: conversationId,
-                user_id: userId,
-                role: role,
-                content: contentToSave
-            }])
+            .insert([messageData])
             .select()
             .single();
         
