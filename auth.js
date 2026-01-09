@@ -120,7 +120,10 @@ function markAuthSettling() {
 }
 
 async function waitForAuthReady() {
+    console.log(`[DEBUG AUTH] waitForAuthReady called, authSettling: ${authSettling}, hasCurrentUser: ${!!currentUser}`);
+    
     if (!authSettling) {
+        console.log(`[DEBUG AUTH] authSettling is false, returning immediately`);
         return true;
     }
     
@@ -129,15 +132,18 @@ async function waitForAuthReady() {
         try {
             const { data: { session } } = await authSupabase.auth.getSession();
             if (session) {
+                console.log(`[DEBUG AUTH] Session already valid, skipping wait`);
                 Logger.info('Session already valid, skipping auth settle wait', AUTH_CONTEXT);
                 authSettling = false;
                 return true;
             }
         } catch (e) {
+            console.log(`[DEBUG AUTH] Error checking session:`, e);
             // Ignore errors, continue with normal wait
         }
     }
     
+    console.log(`[DEBUG AUTH] Starting wait loop...`);
     Logger.info('Waiting for auth to settle...', AUTH_CONTEXT);
     
     const maxWait = 500; // Reduced from 2000ms to 500ms
@@ -150,9 +156,11 @@ async function waitForAuthReady() {
     }
     
     if (authSettling) {
+        console.log(`[DEBUG AUTH] Wait TIMEOUT after ${waited}ms, forcing authSettling=false`);
         Logger.info('Auth settle timeout, proceeding anyway', AUTH_CONTEXT, { waitedMs: waited });
         authSettling = false;
     } else {
+        console.log(`[DEBUG AUTH] Auth settled naturally after ${waited}ms`);
         Logger.info(`Auth settled after ${waited}ms`, AUTH_CONTEXT);
     }
     
@@ -160,15 +168,21 @@ async function waitForAuthReady() {
 }
 
 async function ensureValidSession() {
+    console.log(`[DEBUG AUTH] ensureValidSession called, hasSupabase: ${!!authSupabase}`);
+    
     if (!authSupabase) {
+        console.log(`[DEBUG AUTH] No Supabase client!`);
         Logger.warn('ensureValidSession: No Supabase client', AUTH_CONTEXT);
         return null;
     }
     
     try {
+        const startTime = Date.now();
         const { data: { session }, error } = await authSupabase.auth.getSession();
+        console.log(`[DEBUG AUTH] getSession took ${Date.now() - startTime}ms, hasSession: ${!!session}, error: ${error?.message || 'none'}`);
         
         if (error) {
+            console.log(`[DEBUG AUTH] Session error:`, error);
             Logger.error(error, AUTH_CONTEXT, { operation: 'ensureValidSession' });
             return null;
         }

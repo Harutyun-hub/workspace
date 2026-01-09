@@ -233,6 +233,7 @@ function updateBeforeUnloadHandler() {
 
 // Note: Uses debounce from utils.js
 const debouncedLoadConversation = debounce((conversationId) => {
+    console.log(`%c[DEBUG DEBOUNCE] ${new Date().toISOString()} Debounce fired for: ${conversationId}`, 'background: #0ff; color: #000; font-weight: bold;');
     loadConversation(conversationId);
 }, 300);
 
@@ -1194,6 +1195,9 @@ async function updateConversationTitleFromMessage(conversationId, title) {
 }
 
 async function loadConversation(conversationId) {
+    const loadStartTime = Date.now();
+    console.log(`%c[DEBUG LOAD] ${new Date().toISOString()} loadConversation START: ${conversationId}`, 'background: #0f0; color: #000; font-weight: bold;');
+    
     // Cancel any existing load operation and reset loading state
     cancelConversationLoad();
     
@@ -1207,18 +1211,29 @@ async function loadConversation(conversationId) {
     Logger.info(`START loading conversation: ${conversationId}`, 'LoadConv', { loadRequestId });
     
     // Wait for auth to settle if needed (after visibility change)
+    console.log(`[DEBUG LOAD] Step 1: waitForAuthReady check (${Date.now() - loadStartTime}ms)`);
     if (typeof waitForAuthReady === 'function') {
+        const authWaitStart = Date.now();
         await waitForAuthReady();
+        console.log(`[DEBUG LOAD] waitForAuthReady completed in ${Date.now() - authWaitStart}ms`);
+    } else {
+        console.log(`[DEBUG LOAD] waitForAuthReady not available`);
     }
     
     // Verify session is valid before proceeding
+    console.log(`[DEBUG LOAD] Step 2: ensureValidSession check (${Date.now() - loadStartTime}ms)`);
     if (typeof ensureValidSession === 'function') {
+        const sessionStart = Date.now();
         const session = await ensureValidSession();
+        console.log(`[DEBUG LOAD] ensureValidSession completed in ${Date.now() - sessionStart}ms, hasSession: ${!!session}`);
         if (!session) {
+            console.log(`%c[DEBUG LOAD] ABORT: No valid session`, 'background: #f00; color: #fff; font-weight: bold;');
             Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
             isLoadingConversation = false;
             return;
         }
+    } else {
+        console.log(`[DEBUG LOAD] ensureValidSession not available`);
     }
     
     const messagesContainer = document.getElementById('messages');
@@ -1235,18 +1250,24 @@ async function loadConversation(conversationId) {
     }, 30000);
     
     try {
+        console.log(`[DEBUG LOAD] Step 3: Starting data fetch (${Date.now() - loadStartTime}ms)`);
         hideWelcomeMessage();
         messagesContainer.innerHTML = `<div style="text-align: center; padding: 40px;"><div class="loading-spinner"><img src="${NIMBUS_AVATAR_BASE64}" alt="Loading"></div></div>`;
         
         // Check if this load is still current before making request
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
+            console.log(`[DEBUG LOAD] CANCELLED before getConversation (thisLoadId: ${thisLoadId}, currentLoadId: ${currentLoadId})`);
             throw new Error('Load cancelled');
         }
         
+        console.log(`[DEBUG LOAD] Step 4: Calling getConversation (${Date.now() - loadStartTime}ms)`);
+        const getConvStart = Date.now();
         Logger.info(`Calling getConversation...`, CHAT_CONTEXT, { loadRequestId });
         const result = await getConversation(conversationId);
+        console.log(`[DEBUG LOAD] getConversation completed in ${Date.now() - getConvStart}ms, success: ${result.success}`);
         
         if (!result.success) {
+            console.log(`[DEBUG LOAD] getConversation FAILED:`, result.error);
             throw new Error(result.error?.message || 'Failed to load conversation');
         }
         
@@ -1255,6 +1276,7 @@ async function loadConversation(conversationId) {
         
         // Check if this load is still current after getting conversation
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
+            console.log(`[DEBUG LOAD] CANCELLED after getConversation`);
             throw new Error('Load cancelled');
         }
         
@@ -1265,12 +1287,16 @@ async function loadConversation(conversationId) {
         
         messagesContainer.innerHTML = '';
         
+        console.log(`[DEBUG LOAD] Step 5: Calling loadMessages (${Date.now() - loadStartTime}ms)`);
+        const loadMsgStart = Date.now();
         Logger.info(`Calling loadMessages...`, 'LoadConv', { loadRequestId });
         const messages = await loadMessages();
+        console.log(`[DEBUG LOAD] loadMessages completed in ${Date.now() - loadMsgStart}ms, count: ${messages.length}`);
         Logger.info(`loadMessages returned ${messages.length} messages`, 'LoadConv', { loadRequestId });
         
         // Check if this load is still current after loading messages
         if (thisLoadId !== currentLoadId || currentLoadAbortController?.signal.aborted) {
+            console.log(`[DEBUG LOAD] CANCELLED after loadMessages`);
             throw new Error('Load cancelled');
         }
         
@@ -1283,15 +1309,18 @@ async function loadConversation(conversationId) {
             });
         }
         
+        console.log(`%c[DEBUG LOAD] ${new Date().toISOString()} loadConversation COMPLETE in ${Date.now() - loadStartTime}ms`, 'background: #0f0; color: #000; font-weight: bold;');
         Logger.info(`END - conversation loaded successfully`, 'LoadConv', { loadRequestId });
         
     } catch (error) {
         if (error.message === 'Load cancelled') {
+            console.log(`[DEBUG LOAD] Load cancelled (load ID: ${thisLoadId})`);
             Logger.info(`Cancelled (load ID: ${thisLoadId})`, 'LoadConv', { loadRequestId });
             // Don't reset state here - a newer load may be in progress
             clearTimeout(loadTimeout);
             return;
         }
+        console.log(`%c[DEBUG LOAD] ERROR after ${Date.now() - loadStartTime}ms:`, 'background: #f00; color: #fff; font-weight: bold;', error);
         Logger.error(error, 'LoadConv', { loadRequestId });
         // Only show error if this is still the current load
         if (thisLoadId === currentLoadId) {
@@ -1305,6 +1334,7 @@ async function loadConversation(conversationId) {
         if (thisLoadId === currentLoadId) {
             isLoadingConversation = false;
             currentLoadAbortController = null;
+            console.log(`[DEBUG LOAD] Finally: reset loading state (total time: ${Date.now() - loadStartTime}ms)`);
         }
     }
 }
@@ -1344,10 +1374,16 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
+                const clickTime = Date.now();
+                console.log(`%c[DEBUG CLICK] ${new Date().toISOString()} Chat clicked: ${conv.id}`, 'background: #ff0; color: #000; font-weight: bold;');
+                console.log(`[DEBUG CLICK] isLoadingConversation: ${isLoadingConversation}, currentConversationId: ${currentConversationId}`);
+                
                 cancelConversationLoad();
                 isLoadingConversation = false;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
+                
+                console.log(`[DEBUG CLICK] Calling debouncedLoadConversation for: ${conv.id} (took ${Date.now() - clickTime}ms to reach debounce)`);
                 debouncedLoadConversation(conv.id);
             });
             
