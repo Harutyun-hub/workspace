@@ -240,9 +240,9 @@ const debouncedLoadConversation = debounce((conversationId) => {
 function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         Logger.info(`Tab visible, current state: ${ChatStateMachine.getState()}`, 'Visibility');
-        // Non-blocking background session refresh - does NOT block UI
-        if (typeof refreshSessionBackground === 'function') {
-            refreshSessionBackground();
+        // Mark auth as potentially settling - Supabase may refresh token
+        if (typeof markAuthSettling === 'function') {
+            markAuthSettling();
         }
         // Re-sync UI in case it got out of sync
         ChatStateMachine.syncUI();
@@ -441,18 +441,13 @@ async function saveMessage(role, content, conversationId = null, userId = null) 
     }
 }
 
-async function loadMessages(conversationIdParam) {
-    const convId = conversationIdParam || currentConversationId;
-    console.log(`[DEBUG] loadMessages called with convId: ${convId}, currentConversationId: ${currentConversationId}`);
-    
-    if (!convId) {
-        console.error(`[ERROR] loadMessages: No conversation ID provided! This is a bug.`);
-        throw new Error('No Conversation ID provided to loadMessages');
+async function loadMessages() {
+    if (!currentConversationId) {
+        return [];
     }
     
     try {
-        const result = await loadMessagesFromSupabase(convId);
-        console.log(`[DEBUG] loadMessages result: success=${result.success}, count=${result.data?.length || 0}`);
+        const result = await loadMessagesFromSupabase(currentConversationId);
         if (!result.success) {
             Logger.error(new Error(result.error?.message || 'Failed to load messages'), CHAT_CONTEXT);
             return [];
@@ -1125,50 +1120,18 @@ async function loadConversation(conversationId) {
     
     Logger.info(`START loading conversation: ${conversationId}`, 'LoadConv', { loadRequestId });
     
-    // Check if user is authenticated - use cached user for fast path
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (!user) {
-        // No cached user - wait for auth to complete with timeout
-        console.log(`[DEBUG] No cached user, waiting for auth...`);
-        if (typeof waitForAuthReady === 'function') {
-            try {
-                await Promise.race([
-                    waitForAuthReady(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 2000))
-                ]);
-            } catch (e) {
-                console.error(`[ERROR] Auth wait failed: ${e.message}`);
-                Logger.error(new Error('Auth wait failed or timed out'), 'LoadConv', { loadRequestId });
-                isLoadingConversation = false;
-                return;
-            }
-        }
-    } else {
-        console.log(`[DEBUG] User authenticated (${user.email}), proceeding with bounded session check`);
+    // Wait for auth to settle if needed (after visibility change)
+    if (typeof waitForAuthReady === 'function') {
+        await waitForAuthReady();
     }
     
-    // Bounded session validation - attempt but don't block forever (500ms timeout)
+    // Verify session is valid before proceeding
     if (typeof ensureValidSession === 'function') {
-        try {
-            const sessionResult = await Promise.race([
-                ensureValidSession(),
-                new Promise(resolve => setTimeout(() => resolve('TIMEOUT'), 500))
-            ]);
-            if (sessionResult === 'TIMEOUT') {
-                console.log(`[DEBUG] Session check timed out, proceeding with cached auth`);
-            } else if (!sessionResult) {
-                // Session explicitly returned null - redirect to login
-                console.error(`[ERROR] Session invalid, redirecting to login`);
-                if (typeof requireAuth === 'function') {
-                    requireAuth();
-                }
-                isLoadingConversation = false;
-                return;
-            } else {
-                console.log(`[DEBUG] Session validated successfully`);
-            }
-        } catch (e) {
-            console.log(`[DEBUG] Session check error: ${e.message}, proceeding anyway`);
+        const session = await ensureValidSession();
+        if (!session) {
+            Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
+            isLoadingConversation = false;
+            return;
         }
     }
     
@@ -1217,9 +1180,7 @@ async function loadConversation(conversationId) {
         messagesContainer.innerHTML = '';
         
         Logger.info(`Calling loadMessages...`, 'LoadConv', { loadRequestId });
-        console.log(`[DEBUG] loadConversation calling loadMessages with conversationId: ${conversationId}`);
-        const messages = await loadMessages(conversationId);
-        console.log(`[DEBUG] loadMessages returned ${messages.length} messages for ${conversationId}`);
+        const messages = await loadMessages();
         Logger.info(`loadMessages returned ${messages.length} messages`, 'LoadConv', { loadRequestId });
         
         // Check if this load is still current after loading messages
@@ -1228,16 +1189,12 @@ async function loadConversation(conversationId) {
         }
         
         if (messages.length === 0) {
-            console.log(`[DEBUG] No messages, showing welcome message`);
             showWelcomeMessage();
         } else {
-            console.log(`[DEBUG] Rendering ${messages.length} messages to UI...`);
             hideWelcomeMessage();
-            messages.forEach((msg, index) => {
-                console.log(`[DEBUG] Rendering message ${index + 1}: role=${msg.role}, contentLength=${(msg.content || '').length}`);
+            messages.forEach(msg => {
                 addMessageToUI(msg.role, msg.content);
             });
-            console.log(`[DEBUG] Finished rendering all messages`);
         }
         
         Logger.info(`END - conversation loaded successfully`, 'LoadConv', { loadRequestId });
@@ -1300,12 +1257,10 @@ async function loadConversationHistory() {
             chatText.className = 'chat-item-text';
             chatText.textContent = conv.title || 'New chat';
             chatText.addEventListener('click', () => {
-                console.log(`[DEBUG] Chat item clicked: ${conv.id} - "${conv.title}"`);
                 cancelConversationLoad();
                 isLoadingConversation = false;
                 document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
                 chatItem.classList.add('active');
-                console.log(`[DEBUG] Calling debouncedLoadConversation with: ${conv.id}`);
                 debouncedLoadConversation(conv.id);
             });
             
@@ -1431,10 +1386,7 @@ async function handleDeleteConversation(conversationId) {
         document.querySelectorAll('.chat-item-dropdown').forEach(d => d.classList.remove('show'));
         document.querySelectorAll('.chat-item-menu-btn').forEach(b => b.classList.remove('active'));
         
-        const user = getCurrentUser();
-        const userId = user?.id || null;
-        
-        const result = await deleteConversation(conversationId, userId);
+        const result = await deleteConversation(conversationId);
         if (!result.success) {
             throw new Error(result.error?.message || 'Failed to delete conversation');
         }

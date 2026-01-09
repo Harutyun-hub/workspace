@@ -1,7 +1,6 @@
 let currentUser = null;
 let authSupabase = null;
 let authSettling = false;
-let authActiveOperation = false; // Only true during login/logout/initial load
 let authInitPromise = null;
 let authInitialized = false;
 
@@ -32,14 +31,12 @@ async function initAuth() {
 
 async function _performAuthInit() {
     Logger.info('Starting auth initialization...', AUTH_CONTEXT);
-    authActiveOperation = true;
     
     try {
         authSupabase = await initSupabase();
         
         if (!authSupabase) {
             Logger.error(new Error('Failed to initialize Supabase client'), AUTH_CONTEXT);
-            authActiveOperation = false;
             return null;
         }
         
@@ -106,19 +103,13 @@ async function _performAuthInit() {
                 Logger.info(`Auth state settled after event: ${event}`, AUTH_CONTEXT);
                 authSettling = false;
             }
-            if (authActiveOperation) {
-                Logger.info(`Auth active operation completed after event: ${event}`, AUTH_CONTEXT);
-                authActiveOperation = false;
-            }
         });
         
         Logger.info('Auth initialization complete', AUTH_CONTEXT, { hasSession: !!session });
-        authActiveOperation = false;
         return session;
         
     } catch (error) {
         Logger.error(error, AUTH_CONTEXT, { operation: 'initAuth' });
-        authActiveOperation = false;
         return null;
     }
 }
@@ -128,54 +119,30 @@ function markAuthSettling() {
     Logger.info('Marked auth as settling (visibility change)', AUTH_CONTEXT);
 }
 
-function markAuthActiveOperation(active) {
-    authActiveOperation = active;
-    Logger.info(`Auth active operation: ${active}`, AUTH_CONTEXT);
-}
-
-async function refreshSessionBackground() {
-    if (!authSupabase) {
-        return;
-    }
-    Logger.info('Background session refresh started', AUTH_CONTEXT);
-    try {
-        const { data: { session }, error } = await authSupabase.auth.getSession();
-        if (error) {
-            Logger.warn('Background session refresh error', AUTH_CONTEXT, { error: error.message });
-        } else if (session) {
-            currentUser = session.user;
-            Logger.info('Background session refresh complete', AUTH_CONTEXT);
-        } else {
-            Logger.warn('Background session refresh: no active session', AUTH_CONTEXT);
-            currentUser = null;
-        }
-    } catch (err) {
-        Logger.warn('Background session refresh failed', AUTH_CONTEXT, { error: err.message });
-    }
-}
-
 async function waitForAuthReady() {
-    if (!authActiveOperation) {
+    if (!authSettling) {
         return true;
     }
     
-    Logger.info('Waiting for active auth operation to complete...', AUTH_CONTEXT);
+    Logger.info('Waiting for auth to settle...', AUTH_CONTEXT);
     
     const maxWait = 2000;
     const checkInterval = 100;
     let waited = 0;
     
-    while (authActiveOperation && waited < maxWait) {
+    while (authSettling && waited < maxWait) {
         await new Promise(resolve => setTimeout(resolve, checkInterval));
         waited += checkInterval;
     }
     
-    if (authActiveOperation) {
-        Logger.warn('Auth operation did not complete in time, forcing ready', AUTH_CONTEXT, { waitedMs: waited });
-        authActiveOperation = false;
+    if (authSettling) {
+        Logger.warn('Auth did not settle in time, forcing ready', AUTH_CONTEXT, { waitedMs: waited });
+        authSettling = false;
     } else {
-        Logger.info(`Auth operation completed after ${waited}ms`, AUTH_CONTEXT);
+        Logger.info(`Auth settled after ${waited}ms`, AUTH_CONTEXT);
     }
+    
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     return true;
 }
@@ -253,7 +220,6 @@ async function ensureUserExists(user) {
 
 async function signInWithGoogle() {
     Logger.info('Starting Google sign-in flow...', AUTH_CONTEXT);
-    authActiveOperation = true;
     
     try {
         if (!authSupabase) {
@@ -264,7 +230,6 @@ async function signInWithGoogle() {
         if (!authSupabase) {
             const error = new Error('Authentication service not available');
             Logger.error(error, AUTH_CONTEXT);
-            authActiveOperation = false;
             throw error;
         }
         
@@ -281,17 +246,14 @@ async function signInWithGoogle() {
         
         if (error) {
             Logger.error(error, AUTH_CONTEXT, { operation: 'signInWithOAuth', provider: 'google' });
-            authActiveOperation = false;
             throw error;
         }
         
         Logger.info('OAuth initiated successfully, redirecting...', AUTH_CONTEXT);
-        // Note: authActiveOperation will be reset after redirect completes via onAuthStateChange
         return data;
         
     } catch (error) {
         Logger.error(error, AUTH_CONTEXT, { operation: 'signInWithGoogle' });
-        authActiveOperation = false;
         if (typeof showToast !== 'undefined') {
             showToast('Failed to sign in with Google. Please try again.', 'error');
         }
@@ -301,7 +263,6 @@ async function signInWithGoogle() {
 
 async function signOut() {
     Logger.info('Starting sign-out flow...', AUTH_CONTEXT);
-    authActiveOperation = true;
     
     try {
         const { error } = await authSupabase.auth.signOut();
@@ -325,12 +286,10 @@ async function signOut() {
         authInitialized = false;
         
         Logger.info('Sign-out complete, redirecting to login...', AUTH_CONTEXT);
-        authActiveOperation = false;
         window.location.href = '/login.html';
         
     } catch (error) {
         Logger.error(error, AUTH_CONTEXT, { operation: 'signOut' });
-        authActiveOperation = false;
         throw error;
     }
 }
@@ -366,8 +325,6 @@ const Auth = {
     isInitialized: isAuthInitialized,
     waitForReady: waitForAuthReady,
     markSettling: markAuthSettling,
-    markActiveOperation: markAuthActiveOperation,
-    refreshSessionBackground: refreshSessionBackground,
     ensureValidSession: ensureValidSession,
     requireAuth: requireAuth
 };
