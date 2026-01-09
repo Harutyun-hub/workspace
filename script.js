@@ -240,8 +240,10 @@ const debouncedLoadConversation = debounce((conversationId) => {
 function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         Logger.info(`Tab visible, current state: ${ChatStateMachine.getState()}`, 'Visibility');
-        // Mark auth as potentially settling - Supabase may refresh token
-        if (typeof markAuthSettling === 'function') {
+        // Only mark auth as settling if no user is logged in
+        // This prevents blocking conversation loads when user is already authenticated
+        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (typeof markAuthSettling === 'function' && !user) {
             markAuthSettling();
         }
         // Re-sync UI in case it got out of sync
@@ -1333,6 +1335,7 @@ async function loadConversationHistory() {
         conversations.forEach(conv => {
             const chatItem = document.createElement('div');
             chatItem.className = 'chat-item';
+            chatItem.dataset.conversationId = conv.id;
             if (conv.id === currentConversationId) {
                 chatItem.classList.add('active');
             }
@@ -1475,13 +1478,33 @@ async function handleDeleteConversation(conversationId) {
             throw new Error(result.error?.message || 'Failed to delete conversation');
         }
         
+        // Remove from titledConversations cache
+        titledConversations.delete(conversationId);
+        
+        // Remove DOM element immediately for instant feedback
+        const chatItem = document.querySelector(`.chat-item[data-conversation-id="${conversationId}"]`);
+        if (chatItem) {
+            chatItem.remove();
+        }
+        
         if (conversationId === currentConversationId) {
             currentConversationId = null;
             currentSessionId = null;
             document.getElementById('messages').innerHTML = '<div style="text-align: center; padding: 40px; color: #9aa0a6;">Select a conversation or start a new chat</div>';
+            showWelcomeMessage();
         }
         
+        // Invalidate user conversations cache to ensure fresh data on next load
+        if (typeof QueryCache !== 'undefined') {
+            const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            if (user?.id) {
+                QueryCache.invalidate(`user_conversations:${user.id}`);
+            }
+        }
+        
+        // Refresh sidebar to ensure proper order and sync
         await loadConversationHistory();
+        
         showToast('Conversation deleted successfully', 'success');
     } catch (error) {
         Logger.error(error, CHAT_CONTEXT, { operation: 'handleDeleteConversation' });
