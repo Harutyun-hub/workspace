@@ -1210,30 +1210,33 @@ async function loadConversation(conversationId) {
     
     Logger.info(`START loading conversation: ${conversationId}`, 'LoadConv', { loadRequestId });
     
-    // Wait for auth to settle if needed (after visibility change)
-    console.log(`[DEBUG LOAD] Step 1: waitForAuthReady check (${Date.now() - loadStartTime}ms)`);
-    if (typeof waitForAuthReady === 'function') {
-        const authWaitStart = Date.now();
-        await waitForAuthReady();
-        console.log(`[DEBUG LOAD] waitForAuthReady completed in ${Date.now() - authWaitStart}ms`);
-    } else {
-        console.log(`[DEBUG LOAD] waitForAuthReady not available`);
-    }
+    // Skip auth checks if we already have a current user - this is the fast path
+    const existingUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    console.log(`[DEBUG LOAD] Quick user check: hasUser=${!!existingUser}`);
     
-    // Verify session is valid before proceeding
-    console.log(`[DEBUG LOAD] Step 2: ensureValidSession check (${Date.now() - loadStartTime}ms)`);
-    if (typeof ensureValidSession === 'function') {
-        const sessionStart = Date.now();
-        const session = await ensureValidSession();
-        console.log(`[DEBUG LOAD] ensureValidSession completed in ${Date.now() - sessionStart}ms, hasSession: ${!!session}`);
-        if (!session) {
-            console.log(`%c[DEBUG LOAD] ABORT: No valid session`, 'background: #f00; color: #fff; font-weight: bold;');
-            Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
-            isLoadingConversation = false;
-            return;
+    if (!existingUser) {
+        // Only do expensive auth checks if we don't have a user
+        console.log(`[DEBUG LOAD] Step 1: waitForAuthReady check (${Date.now() - loadStartTime}ms)`);
+        if (typeof waitForAuthReady === 'function') {
+            const authWaitStart = Date.now();
+            await waitForAuthReady();
+            console.log(`[DEBUG LOAD] waitForAuthReady completed in ${Date.now() - authWaitStart}ms`);
+        }
+        
+        console.log(`[DEBUG LOAD] Step 2: ensureValidSession check (${Date.now() - loadStartTime}ms)`);
+        if (typeof ensureValidSession === 'function') {
+            const sessionStart = Date.now();
+            const session = await ensureValidSession();
+            console.log(`[DEBUG LOAD] ensureValidSession completed in ${Date.now() - sessionStart}ms, hasSession: ${!!session}`);
+            if (!session) {
+                console.log(`%c[DEBUG LOAD] ABORT: No valid session`, 'background: #f00; color: #fff; font-weight: bold;');
+                Logger.error(new Error('No valid session, aborting load'), 'LoadConv', { loadRequestId });
+                isLoadingConversation = false;
+                return;
+            }
         }
     } else {
-        console.log(`[DEBUG LOAD] ensureValidSession not available`);
+        console.log(`[DEBUG LOAD] Skipping auth checks - user already exists (fast path)`);
     }
     
     const messagesContainer = document.getElementById('messages');

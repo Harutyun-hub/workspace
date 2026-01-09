@@ -16,6 +16,9 @@ class Logger {
     static _flushingBuffer = false;
     static _flushTimer = null;
     static _lastFlushTime = 0;
+    static _persistenceDisabled = false;
+    static _consecutiveFailures = 0;
+    static _maxConsecutiveFailures = 3;
 
     static BATCH_SIZE = 20;
     static FLUSH_INTERVAL = 30000;
@@ -67,6 +70,11 @@ class Logger {
     static async _flushBuffer() {
         if (this._flushingBuffer || this._logBuffer.length === 0) return;
         
+        if (this._persistenceDisabled) {
+            this._logBuffer = [];
+            return;
+        }
+        
         this._flushingBuffer = true;
         this._lastFlushTime = Date.now();
         
@@ -74,14 +82,26 @@ class Logger {
         
         try {
             await this._batchPersistLogs(logsToFlush);
+            this._consecutiveFailures = 0;
             console.log(`%c[Logger]%c Flushed ${logsToFlush.length} logs in batch`, this.STYLES.info, 'color: inherit;');
         } catch (e) {
-            console.warn('[Logger] Batch flush failed:', e.message);
-            this._logBuffer.unshift(...logsToFlush);
+            this._consecutiveFailures++;
+            
+            if (e.message && (e.message.includes('row-level security') || e.message.includes('RLS'))) {
+                console.warn('[Logger] RLS policy error - disabling remote logging to prevent interference');
+                this._persistenceDisabled = true;
+                this._logBuffer = [];
+            } else if (this._consecutiveFailures >= this._maxConsecutiveFailures) {
+                console.warn(`[Logger] ${this._consecutiveFailures} consecutive failures - disabling remote logging`);
+                this._persistenceDisabled = true;
+                this._logBuffer = [];
+            } else {
+                console.warn('[Logger] Batch flush failed:', e.message);
+            }
         } finally {
             this._flushingBuffer = false;
             
-            if (this._logBuffer.length >= this.BATCH_SIZE) {
+            if (!this._persistenceDisabled && this._logBuffer.length >= this.BATCH_SIZE) {
                 this._scheduleFlush(100);
             }
         }

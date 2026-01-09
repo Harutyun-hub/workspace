@@ -82,6 +82,7 @@ async function _performAuthInit() {
                 await ensureUserExists(session.user);
             } else if (event === 'SIGNED_OUT') {
                 Logger.info('User signed out', AUTH_CONTEXT);
+                console.log(`%c[DEBUG AUTH] SIGNED_OUT event - clearing currentUser`, 'background: #f00; color: #fff; font-weight: bold;');
                 currentUser = null;
             } else if (event === 'TOKEN_REFRESHED') {
                 Logger.info('Token refreshed successfully', AUTH_CONTEXT);
@@ -96,6 +97,7 @@ async function _performAuthInit() {
             }
             
             if (!session && event !== 'SIGNED_OUT' && event !== 'INITIAL_SESSION') {
+                console.log(`%c[DEBUG AUTH] Session became NULL during event: ${event}`, 'background: #f00; color: #fff; font-weight: bold;');
                 Logger.warn(`Session became null unexpectedly during event: ${event}`, AUTH_CONTEXT);
             }
             
