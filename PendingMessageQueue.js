@@ -6,30 +6,67 @@ const PendingMessageQueue = (function() {
     const MAX_RETRIES = 5;
     const BASE_DELAY_MS = 1000;
     const MAX_DELAY_MS = 30000;
+    const SAVE_TIMEOUT_MS = 60000;
     
     let isProcessing = false;
     let flushTimer = null;
+    let memoryQueue = [];
+    let storageAvailable = true;
+
+    function checkStorageAvailable() {
+        try {
+            const testKey = '__storage_test__';
+            localStorage.setItem(testKey, testKey);
+            localStorage.removeItem(testKey);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
 
     function getQueue() {
+        if (!storageAvailable) {
+            return [...memoryQueue];
+        }
         try {
             const stored = localStorage.getItem(QUEUE_KEY);
             return stored ? JSON.parse(stored) : [];
         } catch (e) {
             console.warn('[MessageQueue] Failed to read queue:', e.message);
-            return [];
+            return [...memoryQueue];
         }
     }
 
     function saveQueue(queue) {
+        if (!storageAvailable) {
+            memoryQueue = queue;
+            return true;
+        }
         try {
             localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+            return true;
         } catch (e) {
-            console.warn('[MessageQueue] Failed to save queue:', e.message);
+            console.warn('[MessageQueue] Failed to save queue, using memory fallback:', e.message);
+            storageAvailable = false;
+            memoryQueue = queue;
+            return false;
         }
     }
 
+    function withTimeout(promise, timeoutMs) {
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+        });
+        
+        return Promise.race([promise, timeoutPromise]).finally(() => {
+            clearTimeout(timeoutId);
+        });
+    }
+
     function enqueue(message) {
-        const queue = getQueue();
         const entry = {
             id: message.clientMessageId,
             conversationId: message.conversationId,
@@ -40,21 +77,48 @@ const PendingMessageQueue = (function() {
             createdAt: Date.now(),
             lastAttempt: null
         };
+
+        const queue = getQueue();
         queue.push(entry);
-        saveQueue(queue);
+        const saved = saveQueue(queue);
         
         if (typeof Logger !== 'undefined') {
-            Logger.info(`Message queued: ${entry.id}`, CONTEXT, { queueSize: queue.length });
+            Logger.info(`Message queued: ${entry.id}`, CONTEXT, { 
+                queueSize: queue.length,
+                storageType: storageAvailable ? 'localStorage' : 'memory'
+            });
+        }
+        
+        if (!saved && !storageAvailable) {
+            processMessageDirect(entry);
         }
         
         scheduleFlush();
         return entry.id;
     }
 
-    function removeFromQueue(messageId) {
-        const queue = getQueue();
-        const filtered = queue.filter(m => m.id !== messageId);
-        saveQueue(filtered);
+    async function processMessageDirect(entry) {
+        try {
+            if (typeof saveMessageToSupabase !== 'undefined') {
+                const result = await withTimeout(
+                    saveMessageToSupabase(
+                        entry.conversationId,
+                        entry.userId,
+                        entry.role,
+                        entry.content,
+                        entry.id
+                    ),
+                    SAVE_TIMEOUT_MS
+                );
+                if (result.success) {
+                    const queue = getQueue();
+                    const filtered = queue.filter(m => m.id !== entry.id);
+                    saveQueue(filtered);
+                }
+            }
+        } catch (e) {
+            console.warn('[MessageQueue] Direct save failed:', e.message);
+        }
     }
 
     function updateAttempt(messageId, success, error = null) {
@@ -103,12 +167,15 @@ const PendingMessageQueue = (function() {
                 throw new Error('saveMessageToSupabase not available');
             }
 
-            const result = await saveMessageToSupabase(
-                entry.conversationId,
-                entry.userId,
-                entry.role,
-                entry.content,
-                entry.id
+            const result = await withTimeout(
+                saveMessageToSupabase(
+                    entry.conversationId,
+                    entry.userId,
+                    entry.role,
+                    entry.content,
+                    entry.id
+                ),
+                SAVE_TIMEOUT_MS
             );
 
             if (result.success) {
@@ -143,14 +210,18 @@ const PendingMessageQueue = (function() {
             Logger.info(`Flushing ${pending.length} pending messages`, CONTEXT);
         }
 
-        for (const entry of pending) {
-            const result = await processMessage(entry);
-            if (result === null) {
-                continue;
+        try {
+            for (const entry of pending) {
+                const result = await processMessage(entry);
+                if (result === null) {
+                    continue;
+                }
             }
+        } catch (e) {
+            console.error('[MessageQueue] Flush error:', e);
+        } finally {
+            isProcessing = false;
         }
-
-        isProcessing = false;
         
         const remaining = getQueue().filter(m => m.status !== 'failed' && m.attempts < MAX_RETRIES);
         if (remaining.length > 0) {
@@ -163,11 +234,20 @@ const PendingMessageQueue = (function() {
             clearTimeout(flushTimer);
         }
         flushTimer = setTimeout(() => {
-            flush().catch(e => console.error('[MessageQueue] Flush error:', e));
+            flush().catch(e => {
+                console.error('[MessageQueue] Flush error:', e);
+                isProcessing = false;
+            });
         }, delay);
     }
 
     function init() {
+        storageAvailable = checkStorageAvailable();
+        
+        if (!storageAvailable && typeof Logger !== 'undefined') {
+            Logger.warn('localStorage not available, using memory queue', CONTEXT);
+        }
+
         window.addEventListener('online', () => {
             if (typeof Logger !== 'undefined') {
                 Logger.info('Network online - triggering flush', CONTEXT);
@@ -185,7 +265,9 @@ const PendingMessageQueue = (function() {
         
         if (typeof Logger !== 'undefined') {
             const queue = getQueue();
-            Logger.info(`Initialized with ${queue.length} pending messages`, CONTEXT);
+            Logger.info(`Initialized with ${queue.length} pending messages`, CONTEXT, {
+                storageType: storageAvailable ? 'localStorage' : 'memory'
+            });
         }
     }
 
@@ -194,7 +276,8 @@ const PendingMessageQueue = (function() {
         return {
             total: queue.length,
             pending: queue.filter(m => m.status !== 'failed' && m.attempts < MAX_RETRIES).length,
-            failed: queue.filter(m => m.status === 'failed' || m.attempts >= MAX_RETRIES).length
+            failed: queue.filter(m => m.status === 'failed' || m.attempts >= MAX_RETRIES).length,
+            storageType: storageAvailable ? 'localStorage' : 'memory'
         };
     }
 
