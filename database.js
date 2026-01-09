@@ -310,14 +310,18 @@ async function loadMessagesFromSupabase(conversationId) {
     const startTime = Date.now();
     const cacheKey = `messages:${conversationId}`;
     
+    console.log(`[DEBUG] loadMessagesFromSupabase called with conversationId: ${conversationId}`);
+    
     if (typeof QueryCache !== 'undefined') {
         const cached = QueryCache.get(cacheKey, false);
         if (cached) {
+            console.log(`[DEBUG] Cache HIT for ${conversationId}, returning ${cached.length} messages`);
             Logger.info(`Cache hit for messages`, DB_CONTEXT, { requestId, conversationId, count: cached.length, fromCache: true });
             return createSuccessResult(cached, true);
         }
     }
     
+    console.log(`[DEBUG] Cache MISS for ${conversationId}, fetching from Supabase...`);
     Logger.info(`Loading messages for conversation: ${conversationId}`, DB_CONTEXT, { requestId });
     
     try {
@@ -333,6 +337,7 @@ async function loadMessagesFromSupabase(conversationId) {
         const { data, error, status, statusText } = result;
         const elapsed = Date.now() - startTime;
         
+        console.log(`[DEBUG] Supabase returned ${(data || []).length} messages for ${conversationId} in ${elapsed}ms`);
         Logger.info(`loadMessagesFromSupabase response`, DB_CONTEXT, {
             requestId,
             hasData: !!data,

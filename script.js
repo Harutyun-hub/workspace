@@ -441,13 +441,18 @@ async function saveMessage(role, content, conversationId = null, userId = null) 
     }
 }
 
-async function loadMessages() {
-    if (!currentConversationId) {
+async function loadMessages(conversationIdParam) {
+    const convId = conversationIdParam || currentConversationId;
+    console.log(`[DEBUG] loadMessages called with convId: ${convId}, currentConversationId: ${currentConversationId}`);
+    
+    if (!convId) {
+        console.log(`[DEBUG] loadMessages: No conversation ID, returning empty`);
         return [];
     }
     
     try {
-        const result = await loadMessagesFromSupabase(currentConversationId);
+        const result = await loadMessagesFromSupabase(convId);
+        console.log(`[DEBUG] loadMessages result: success=${result.success}, count=${result.data?.length || 0}`);
         if (!result.success) {
             Logger.error(new Error(result.error?.message || 'Failed to load messages'), CHAT_CONTEXT);
             return [];
@@ -1186,7 +1191,9 @@ async function loadConversation(conversationId) {
         messagesContainer.innerHTML = '';
         
         Logger.info(`Calling loadMessages...`, 'LoadConv', { loadRequestId });
-        const messages = await loadMessages();
+        console.log(`[DEBUG] loadConversation calling loadMessages with conversationId: ${conversationId}`);
+        const messages = await loadMessages(conversationId);
+        console.log(`[DEBUG] loadMessages returned ${messages.length} messages for ${conversationId}`);
         Logger.info(`loadMessages returned ${messages.length} messages`, 'LoadConv', { loadRequestId });
         
         // Check if this load is still current after loading messages
@@ -1195,12 +1202,16 @@ async function loadConversation(conversationId) {
         }
         
         if (messages.length === 0) {
+            console.log(`[DEBUG] No messages, showing welcome message`);
             showWelcomeMessage();
         } else {
+            console.log(`[DEBUG] Rendering ${messages.length} messages to UI...`);
             hideWelcomeMessage();
-            messages.forEach(msg => {
+            messages.forEach((msg, index) => {
+                console.log(`[DEBUG] Rendering message ${index + 1}: role=${msg.role}, contentLength=${(msg.content || '').length}`);
                 addMessageToUI(msg.role, msg.content);
             });
+            console.log(`[DEBUG] Finished rendering all messages`);
         }
         
         Logger.info(`END - conversation loaded successfully`, 'LoadConv', { loadRequestId });
