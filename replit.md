@@ -34,6 +34,7 @@ The application is built with vanilla HTML, CSS, and JavaScript, emphasizing a g
 - **Robust Message Saving**: Messages capture conversation/user IDs at send time, background task tracking, and browser `beforeunload` warning.
 - **PendingMessageQueue**: Client-side localStorage-based queue for reliable message persistence. Features include: automatic retry with exponential backoff (up to 5 attempts), 60-second timeout per save, graceful fallback to in-memory queue when localStorage unavailable (Safari private mode), auto-flush on page load/visibility change/network online events. Ensures zero message loss for RAG applications.
 - **Enterprise Chat State Machine**: Manages chat states (IDLE, SENDING, AWAITING_AI, RENDERING, ERROR) for UI sync, prevents duplicate sends, and includes global safety watchdog timeouts.
+- **Delta-Time Typing Animation**: Uses `requestAnimationFrame` with delta-time logic instead of `setInterval` to prevent browser throttling issues when tabs are in background. Automatically detects large time gaps (>500ms) when returning from background tabs and immediately completes animations to prevent UI freezing.
 - **Application Lifecycle Manager**: Ensures strict initialization order (DOM, Auth, Chat) with promise-based execution and global error boundaries.
 - **Standardized Database Layer**: All Supabase operations return `{ success, data, error }` objects for consistent error handling.
 - **Server**: Python HTTP server for `/api/config` to deliver secure credentials.
