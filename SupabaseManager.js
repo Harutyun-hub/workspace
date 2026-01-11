@@ -133,7 +133,7 @@ const SupabaseManager = (function() {
                     auth: {
                         persistSession: true,
                         autoRefreshToken: true,
-                        detectSessionInUrl: false,
+                        detectSessionInUrl: true,  // Enable OAuth token detection from URL
                         storage: window.localStorage,
                         lock: noOpLock
                     },

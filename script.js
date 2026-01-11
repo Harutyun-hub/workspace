@@ -1922,18 +1922,33 @@ async function initApp() {
     // Step 1: DOM is already ready (called from DOMContentLoaded)
     Logger.info('Step 1: DOM ready', APP_CONTEXT);
     
-    // Step 2: Initialize authentication and wait for it
+    // Show loading overlay if OAuth callback detected
+    const hasOAuthTokens = window.location.hash.includes('access_token') || 
+                           window.location.search.includes('code=');
+    const authLoadingOverlay = document.getElementById('authLoadingOverlay');
+    if (hasOAuthTokens && authLoadingOverlay) {
+        authLoadingOverlay.classList.add('visible');
+        Logger.info('OAuth callback detected, showing loading overlay', APP_CONTEXT);
+    }
+    
+    // Step 2: Initialize authentication and wait for it (includes OAuth wait)
     Logger.info('Step 2: Initializing authentication...', APP_CONTEXT);
     
     try {
-        // Use the Auth interface for initialization
-        const session = await Auth.initialize();
+        // Use requireAuth which waits for OAuth state to settle
+        const session = await Auth.requireAuth();
+        
+        // Hide loading overlay
+        if (authLoadingOverlay) {
+            authLoadingOverlay.classList.remove('visible');
+        }
         
         // Get user from Auth interface after initialization is complete
         const user = Auth.getCurrentUser();
         
         if (!session && !user) {
             Logger.warn('No active session found', APP_CONTEXT);
+            // requireAuth already handles redirect, but just in case
             if (!window.location.pathname.includes('login.html')) {
                 Logger.info('Redirecting to login page...', APP_CONTEXT);
                 window.location.href = '/login.html';

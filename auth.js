@@ -8,6 +8,11 @@ const AUTH_CONTEXT = 'Auth';
 // Store the last known session to avoid calling getSession() which can hang
 let cachedSession = null;
 
+// Auth state settlement tracking - resolves when auth state is determined
+let authStateSettledPromise = null;
+let authStateSettledResolver = null;
+let authStateHasSettled = false;
+
 async function initAuth() {
     if (authInitPromise) {
         Logger.info('Auth initialization already in progress, waiting...', AUTH_CONTEXT);
@@ -98,6 +103,15 @@ async function _performAuthInit() {
             if (event === 'SIGNED_IN' && session) {
                 Logger.info('User signed in successfully', AUTH_CONTEXT, { userId: session.user?.id });
                 currentUser = session.user;
+                
+                // OAUTH FIX: Resolve auth state promise on successful sign-in
+                // This allows requireAuth() to wait for OAuth completion
+                if (authStateSettledResolver) {
+                    Logger.info('Resolving auth state promise (SIGNED_IN)', AUTH_CONTEXT);
+                    authStateSettledResolver(session);
+                    authStateHasSettled = true;
+                }
+                
                 // Defer async work to prevent deadlock
                 setTimeout(() => {
                     ensureUserExists(session.user).catch(err => 
@@ -108,6 +122,11 @@ async function _performAuthInit() {
                 Logger.info('User signed out', AUTH_CONTEXT);
                 currentUser = null;
                 cachedSession = null;
+                // Also settle on sign out
+                if (authStateSettledResolver) {
+                    authStateSettledResolver(null);
+                    authStateHasSettled = true;
+                }
             } else if (event === 'TOKEN_REFRESHED') {
                 Logger.info('Token refreshed successfully', AUTH_CONTEXT);
                 if (session) {
@@ -117,6 +136,14 @@ async function _performAuthInit() {
                 Logger.info('User data updated', AUTH_CONTEXT);
                 if (session) {
                     currentUser = session.user;
+                }
+            } else if (event === 'INITIAL_SESSION') {
+                // INITIAL_SESSION fires when Supabase finishes checking for existing session
+                // This includes after OAuth token exchange
+                if (authStateSettledResolver) {
+                    Logger.info('Resolving auth state promise (INITIAL_SESSION)', AUTH_CONTEXT);
+                    authStateSettledResolver(session);
+                    authStateHasSettled = true;
                 }
             }
             
@@ -386,10 +413,66 @@ function isAuthInitialized() {
     return authInitialized;
 }
 
+/**
+ * Waits for auth state to settle after OAuth redirect.
+ * This prevents the race condition where we check session before OAuth tokens are exchanged.
+ * @param {number} timeoutMs - Maximum time to wait for auth state
+ * @returns {Promise<object|null>} - The session or null
+ */
+async function waitForAuthState(timeoutMs = 5000) {
+    // If auth state already settled, return cached session
+    if (authStateHasSettled) {
+        Logger.info('Auth state already settled', AUTH_CONTEXT);
+        return cachedSession;
+    }
+    
+    // Check if we're coming from OAuth (tokens in URL)
+    const hasOAuthTokens = window.location.hash.includes('access_token') || 
+                           window.location.search.includes('code=');
+    
+    if (!hasOAuthTokens) {
+        // No OAuth callback, no need to wait
+        Logger.info('No OAuth tokens in URL, skipping wait', AUTH_CONTEXT);
+        return cachedSession;
+    }
+    
+    Logger.info('OAuth tokens detected in URL, waiting for auth state to settle...', AUTH_CONTEXT);
+    
+    // Create promise if not exists
+    if (!authStateSettledPromise) {
+        authStateSettledPromise = new Promise((resolve) => {
+            authStateSettledResolver = resolve;
+        });
+    }
+    
+    // Race between auth state settling and timeout
+    const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+            Logger.warn(`Auth state wait timeout after ${timeoutMs}ms`, AUTH_CONTEXT);
+            resolve(cachedSession);
+        }, timeoutMs);
+    });
+    
+    const session = await Promise.race([authStateSettledPromise, timeoutPromise]);
+    Logger.info('Auth state settled', AUTH_CONTEXT, { hasSession: !!session });
+    
+    return session;
+}
+
 async function requireAuth() {
     Logger.info('Checking authentication requirement...', AUTH_CONTEXT);
     
-    const session = await initAuth();
+    // First, initialize auth (this sets up onAuthStateChange listener)
+    await initAuth();
+    
+    // Wait for auth state to settle (handles OAuth callback race condition)
+    const session = await waitForAuthState(5000);
+    
+    // Update cached session if we got one from waiting
+    if (session) {
+        cachedSession = session;
+        currentUser = session.user;
+    }
     
     if (!session && !window.location.pathname.includes('login.html')) {
         Logger.warn('No session found, redirecting to login', AUTH_CONTEXT);
