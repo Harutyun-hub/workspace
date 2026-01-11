@@ -559,6 +559,41 @@ if (typeof window !== 'undefined') {
     window.cleanupAllState = cleanupAllState;
     window.attachEventListeners = attachEventListeners;
     window.detachEventListeners = detachEventListeners;
+    
+    window.handleReconnect = async function(conversationId) {
+        Logger.info('User triggered manual reconnect', 'Reconnect');
+        window._connectionRetryCount = 0;
+        
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer) {
+            messagesContainer.innerHTML = `
+                <div class="syncing-indicator">
+                    <div class="syncing-spinner"></div>
+                    <span>Reconnecting...</span>
+                </div>`;
+        }
+        
+        try {
+            if (typeof SupabaseManager !== 'undefined' && SupabaseManager.reinitialize) {
+                await SupabaseManager.reinitialize();
+                Logger.info('Client reinitialized via manual reconnect', 'Reconnect');
+            }
+            
+            if (conversationId) {
+                await loadConversation(conversationId);
+            }
+        } catch (error) {
+            Logger.error(error, 'Reconnect', { operation: 'handleReconnect' });
+            if (messagesContainer) {
+                messagesContainer.innerHTML = `
+                    <div class="reconnect-container">
+                        <div class="reconnect-icon">&#x26A0;</div>
+                        <div class="reconnect-message">Reconnection failed</div>
+                        <button class="reconnect-button" onclick="window.location.reload()">Refresh Page</button>
+                    </div>`;
+            }
+        }
+    };
 }
 
 function generateUUID() {
@@ -1360,11 +1395,67 @@ async function loadConversation(conversationId) {
         if (!connectionStatus.ready) {
             Logger.warn(`Connection not ready: ${connectionStatus.error}`, 'LoadConv', { loadRequestId });
             
-            // Show subtle syncing indicator instead of error
+            // Track retry count using a global counter
+            window._connectionRetryCount = (window._connectionRetryCount || 0) + 1;
+            const MAX_RETRIES = 3;
+            
+            if (window._connectionRetryCount > MAX_RETRIES) {
+                Logger.warn(`Max retries (${MAX_RETRIES}) exceeded, attempting client reinit`, 'LoadConv');
+                
+                // Show reinitializing indicator
+                messagesContainer.innerHTML = `
+                    <div class="syncing-indicator">
+                        <div class="syncing-spinner"></div>
+                        <span>Reinitializing connection...</span>
+                    </div>`;
+                
+                // Attempt client reinitialization and auto-retry
+                if (typeof SupabaseManager !== 'undefined' && SupabaseManager.reinitialize) {
+                    const savedConversationId = conversationId;
+                    const savedLoadId = thisLoadId;
+                    
+                    SupabaseManager.reinitialize().then(() => {
+                        Logger.info('Client reinitialized successfully, auto-retrying load', 'LoadConv');
+                        window._connectionRetryCount = 0;
+                        
+                        // Only auto-retry if this is still the current load
+                        if (savedLoadId === currentLoadId) {
+                            loadConversation(savedConversationId).catch(e => {
+                                Logger.error(e, 'LoadConv', { operation: 'post-reinit-load' });
+                            });
+                        }
+                    }).catch(e => {
+                        Logger.error(e, 'LoadConv', { operation: 'reinitialize' });
+                        
+                        // Show reconnect button only if reinit failed
+                        if (savedLoadId === currentLoadId) {
+                            messagesContainer.innerHTML = `
+                                <div class="reconnect-container">
+                                    <div class="reconnect-icon">&#x26A0;</div>
+                                    <div class="reconnect-message">Connection lost</div>
+                                    <button class="reconnect-button" onclick="window.handleReconnect('${savedConversationId}')">Reconnect</button>
+                                </div>`;
+                        }
+                    });
+                } else {
+                    // No reinitialize available, show manual reconnect
+                    messagesContainer.innerHTML = `
+                        <div class="reconnect-container">
+                            <div class="reconnect-icon">&#x26A0;</div>
+                            <div class="reconnect-message">Connection lost</div>
+                            <button class="reconnect-button" onclick="window.handleReconnect('${conversationId}')">Reconnect</button>
+                        </div>`;
+                }
+                
+                isLoadingConversation = false;
+                return;
+            }
+            
+            // Show subtle syncing indicator with retry count
             messagesContainer.innerHTML = `
                 <div class="syncing-indicator">
                     <div class="syncing-spinner"></div>
-                    <span>Syncing...</span>
+                    <span>Syncing... (attempt ${window._connectionRetryCount}/${MAX_RETRIES})</span>
                 </div>`;
             
             // Trigger background session refresh to wake up the connection
@@ -1384,6 +1475,8 @@ async function loadConversation(conversationId) {
             return;
         }
         
+        // Connection successful - reset retry counter
+        window._connectionRetryCount = 0;
         Logger.info('Connection pre-flight passed', 'LoadConv', { loadRequestId });
     }
     

@@ -12,6 +12,10 @@ const SupabaseManager = (function() {
     let _config = null;
     let _initialized = false;
     let _initStartTime = null;
+    
+    const noOpLock = async (name, acquireTimeout, fn) => {
+        return await fn();
+    };
 
     function log(message, meta = null) {
         const timestamp = new Date().toISOString();
@@ -129,8 +133,9 @@ const SupabaseManager = (function() {
                     auth: {
                         persistSession: true,
                         autoRefreshToken: true,
-                        detectSessionInUrl: true,
-                        storage: window.localStorage
+                        detectSessionInUrl: false,
+                        storage: window.localStorage,
+                        lock: noOpLock
                     },
                     global: {
                         headers: {
@@ -202,8 +207,36 @@ const SupabaseManager = (function() {
         }
     }
 
+    async function reinitialize() {
+        log('Force reinitializing Supabase client (deadlock recovery)...');
+        
+        try {
+            if (_client) {
+                try {
+                    await _client.auth.signOut({ scope: 'local' });
+                } catch (e) {
+                    warn('SignOut during reinit failed (expected): ' + e.message);
+                }
+            }
+        } catch (e) {
+            warn('Client cleanup failed: ' + e.message);
+        }
+        
+        _client = null;
+        _initPromise = null;
+        _initialized = false;
+        _config = null;
+        
+        clearCache();
+        
+        log('State cleared, creating fresh client...');
+        
+        return await initialize();
+    }
+
     return {
         initialize,
+        reinitialize,
         getClient,
         isInitialized,
         getSession,

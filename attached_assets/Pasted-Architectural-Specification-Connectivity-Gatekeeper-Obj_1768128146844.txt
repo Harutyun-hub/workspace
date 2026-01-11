@@ -1,0 +1,78 @@
+Architectural Specification: Connectivity Gatekeeper
+Objective: Prevent the application from hanging on "Loading Conversation..." when the user returns to a tab after the network connection has slept.
+
+1. Deadlock Prevention (Root Cause Fix)
+Issue: The Supabase Client autoRefreshToken and detectSessionInUrl logic is prone to "Deadlocks" in restricted webview environments (like Replit) when tabs resume from background. Solution: Disable the automatic, locking features and take manual control.
+
+Instructions for 
+
+config.js
+:
+
+Modify 
+
+initSupabase
+ (Line 57):
+Do NOT use the default createClient(URL, KEY).
+Inject this Configuration Object:
+const options = {
+    auth: {
+        autoRefreshToken: false, // CRITICAL: Disables the background timer that deadlocks
+        persistSession: true,    // Keep using localStorage
+        detectSessionInUrl: false // Disables URL parsing race conditions
+    }
+};
+supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, options);
+Why: By turning off autoRefreshToken, we stop the client from trying to acquire the "Web Lock" that hangs the browser. We will handle token refreshing manually in 
+
+auth.js
+.
+2. Manual Token Management (Control Inversion)
+Issue: Since we disabled autoRefreshToken, we must explicitly refresh the token when the app wakes up. Solution: Update 
+
+onVisibilityChange
+ to perform the refresh safely.
+
+Instructions for 
+
+auth.js
+:
+
+Update 
+
+onVisibilityChange
+:
+Call supabase.auth.startAutoRefresh() briefly or simply call getSession() to force a refresh.
+Since the "Lock" is disabled in config, this call will no longer hang.
+3. Connectivity Gatekeeper (Safety Net)
+Objective: Prevent the application from hanging on "Loading Conversation..." in the rare case the socket is still dead. 2. Insert a Pre-Flight Check: Immediately before the database query is executed, verify the Authentication Session. 3. Enforce a Short Timeout (Crucial): * This Auth/Session check MUST be wrapped in a short timeout (maximum 3 seconds). * Do not rely on the default Supabase// 2. Execute Gatekeeper let retryCount = 0; const MAX_RETRIES = 2;
+
+async function executeGatekeeper() { try { Logger.info('Gatekeeper: Verifying connection...', CHAT_CONTEXT); await authCheckPromise(); Logger.info('Gatekeeper: Connection active.', CHAT_CONTEXT); retryCount = 0; // Reset on success } catch (error) { Logger.warn(Gatekeeper: Check failed., CHAT_CONTEXT);
+
+// 3. Smart Recovery Strategy
+    retryCount++;
+    
+    if (retryCount > MAX_RETRIES) {
+        // CRITICAL: Connection is permanently dead. "Soft" refresh isn't working.
+        // Professional Handling: Force a completely fresh connection or prompt user.
+        showToast('Connection lost. Reconnecting...', 'error');
+        
+        // OPTION A: The "Hard Reset" (Best for Replit)
+        // Force browser to dump the socket pool. 
+        // supabase.auth.stopAutoRefresh();
+        // supabase = createClient(...); 
+        
+        // OPTION B: The "User Guard" (Safest)
+        // Stop looping. Show a button.
+        // updateUIConnectionState('offline'); 
+        return; 
+    }
+    // Soft Recovery
+    showToast('Syncing connection...', 'info');
+    Auth.onVisibilityChange(); // Nudge socket
+    return; // Abort this load, let auto-retry handle it next tick
+}
+} Expected Outcome:
+
+Scenario A (Active): Data loads instantly.
+Scenario B (Asleep): The app waits 3 seconds, realizes the connection is stale, and stops. It silently reconnects in the background. The user never sees the 30-second freeze or the red "Failed" error banner.
