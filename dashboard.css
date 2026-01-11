@@ -436,6 +436,11 @@ body.dashboard-page .sidebar-footer {
         z-index: 100;
         transform: translateX(-100%);
         width: 280px;
+        /* Restore glassmorphism on mobile */
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        background: var(--glass-bg);
+        border-right: 1px solid var(--glass-border);
     }
     
     body.dashboard-page .sidebar.open {
@@ -449,6 +454,11 @@ body.dashboard-page .sidebar-footer {
     
     body.dashboard-page .sidebar.collapsed.open {
         transform: translateX(0);
+    }
+    
+    /* Hide collapse button on mobile dashboard */
+    body.dashboard-page .sidebar .collapse-btn {
+        display: none;
     }
     
     /* Show all text in mobile sidebar even if collapsed */
