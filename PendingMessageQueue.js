@@ -119,8 +119,7 @@ const PendingMessageQueue = (function() {
                         entry.conversationId,
                         entry.userId,
                         entry.role,
-                        entry.content,
-                        entry.id
+                        entry.content
                     ),
                     SAVE_TIMEOUT_MS
                 );
@@ -258,8 +257,7 @@ const PendingMessageQueue = (function() {
                     entry.conversationId,
                     entry.userId,
                     entry.role,
-                    entry.content,
-                    entry.id
+                    entry.content
                 ),
                 SAVE_TIMEOUT_MS
             );

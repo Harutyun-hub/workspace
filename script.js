@@ -612,7 +612,7 @@ async function saveMessage(role, content, conversationId = null, userId = null) 
         try {
             const result = await withRetry(
                 async () => {
-                    const saveResult = await withTimeout(saveMessageToSupabase(convId, uId, role, content, clientMessageId), SAVE_TIMEOUT_MS);
+                    const saveResult = await withTimeout(saveMessageToSupabase(convId, uId, role, content), SAVE_TIMEOUT_MS);
                     if (!saveResult.success) {
                         throw new Error(saveResult.error?.message || 'Save failed');
                     }
@@ -647,7 +647,7 @@ async function saveMessageDirect(role, content, conversationId = null, userId = 
     
     try {
         const saveResult = await withTimeout(
-            saveMessageToSupabase(convId, uId, role, content, clientMessageId), 
+            saveMessageToSupabase(convId, uId, role, content), 
             DIRECT_SAVE_TIMEOUT_MS
         );
         
