@@ -1,6 +1,22 @@
 let instagramChart = null;
 let instagramChart2 = null;
 
+// Module-level data storage for cross-source aggregation
+let facebookData = [];
+let googleData = [];
+let instagramData = [];
+let websiteData = [];
+let screenshotsData = [];
+
+// Chart instances for cleanup
+let shareOfVoiceAdsChart = null;
+let shareOfVoicePostsChart = null;
+let shareOfEngagementChart = null;
+let activityTimelineChart = null;
+let instagramTrendChart = null;
+let adCampaignChart = null;
+let adFormatDistributionChart = null;
+
 const tableConfigs = {
     facebook: {
         tableName: 'facebook_ads',
@@ -230,6 +246,13 @@ async function loadAllData() {
             }
         });
         
+        // Update all dashboard components after data is loaded
+        console.log('[Dashboard] Updating dashboard components...');
+        updateStatCards();
+        updateShareOfVoiceCharts();
+        updateTimelineCharts();
+        updateCompetitorCards();
+        
         console.log('[Dashboard] ========== DATA LOADING COMPLETE ==========');
     } catch (error) {
         console.error('[Dashboard] Error in loadAllData:', error);
@@ -247,7 +270,8 @@ function getFilters() {
 
 async function loadFacebookAds(filters) {
     if (filters.source && filters.source !== 'facebook') {
-        updateTableUI('facebook', []);
+        facebookData = [];
+        renderFacebookGallery([]);
         return;
     }
     
@@ -290,17 +314,23 @@ async function loadFacebookAds(filters) {
             company_name: row.page_name || row.handle || 'Unknown'
         }));
         
-        updateTableUI('facebook', safeData);
+        // Store in module variable for cross-source aggregation
+        facebookData = safeData;
+        
+        // Render to gallery
+        renderFacebookGallery(safeData);
         
     } catch (error) {
         console.error('[Facebook] Exception:', error);
-        updateTableUI('facebook', []);
+        facebookData = [];
+        renderFacebookGallery([]);
     }
 }
 
 async function loadGoogleAds(filters) {
     if (filters.source && filters.source !== 'google') {
-        updateTableUI('google', []);
+        googleData = [];
+        renderGoogleGallery([]);
         return;
     }
     
@@ -344,17 +374,23 @@ async function loadGoogleAds(filters) {
             company_name: row.handle || 'Unknown'
         }));
         
-        updateTableUI('google', safeData);
+        // Store in module variable for cross-source aggregation
+        googleData = safeData;
+        
+        // Render to gallery
+        renderGoogleGallery(safeData);
         
     } catch (error) {
         console.error('[Google] Exception:', error);
-        updateTableUI('google', []);
+        googleData = [];
+        renderGoogleGallery([]);
     }
 }
 
 async function loadInstagramPosts(filters) {
     if (filters.source && filters.source !== 'instagram') {
-        updateTableUI('instagram', []);
+        instagramData = [];
+        renderPostsGallery([]);
         updateInstagramChart([]);
         return;
     }
@@ -400,19 +436,25 @@ async function loadInstagramPosts(filters) {
             company_name: row.handle || 'Unknown'
         }));
         
-        updateTableUI('instagram', safeData);
+        // Store in module variable for cross-source aggregation
+        instagramData = safeData;
+        
+        // Render to gallery and charts
+        renderPostsGallery(safeData);
         updateInstagramChart(safeData);
         
     } catch (error) {
         console.error('[Instagram] Exception:', error);
-        updateTableUI('instagram', []);
+        instagramData = [];
+        renderPostsGallery([]);
         updateInstagramChart([]);
     }
 }
 
 async function loadWebsiteData(filters) {
     if (filters.source && filters.source !== 'website') {
-        updateTableUI('website', []);
+        websiteData = [];
+        renderChangesTimeline([]);
         return;
     }
     
@@ -455,17 +497,24 @@ async function loadWebsiteData(filters) {
             company_name: row.company_name || row.handle || 'Unknown'
         }));
         
-        updateTableUI('website', safeData);
+        // Store in module variable for cross-source aggregation
+        websiteData = safeData;
+        
+        // Render to timeline and populate diff selector
+        renderChangesTimeline(safeData);
+        populateDiffCompanySelect(safeData);
         
     } catch (error) {
         console.error('[Website] Exception:', error);
-        updateTableUI('website', []);
+        websiteData = [];
+        renderChangesTimeline([]);
     }
 }
 
 async function loadCompanyScreenshots(filters) {
     if (filters.source && filters.source !== 'screenshots') {
-        updateTableUI('screenshots', []);
+        screenshotsData = [];
+        renderScreenshotsGrid([]);
         return;
     }
     
@@ -480,6 +529,7 @@ async function loadCompanyScreenshots(filters) {
             query = query.or(`company_name.eq.${filters.handle},company_name.ilike.%${filters.handle}%`);
         }
         
+        // Screenshots use created_at instead of snapshot_date
         if (filters.dateFrom) {
             query = query.gte('created_at', filters.dateFrom);
         }
@@ -508,11 +558,16 @@ async function loadCompanyScreenshots(filters) {
             company_name: row.company_name || 'Unknown'
         }));
         
-        updateTableUI('screenshots', safeData);
+        // Store in module variable for cross-source aggregation
+        screenshotsData = safeData;
+        
+        // Render to screenshots grid
+        renderScreenshotsGrid(safeData);
         
     } catch (error) {
         console.error('[Screenshots] Exception:', error);
-        updateTableUI('screenshots', []);
+        screenshotsData = [];
+        renderScreenshotsGrid([]);
     }
 }
 
@@ -582,6 +637,858 @@ function updateTableUI(source, data) {
         
         return `<tr>${companyCell}${cells}</tr>`;
     }).join('');
+}
+
+// ==================== GALLERY RENDER FUNCTIONS ====================
+
+function renderFacebookGallery(data) {
+    const gallery = document.getElementById('facebookGallery');
+    const countEl = document.getElementById('facebookGalleryCount');
+    
+    if (countEl) {
+        countEl.textContent = `${data.length} ads`;
+    }
+    
+    if (!gallery) {
+        console.warn('[Facebook] Gallery element not found');
+        return;
+    }
+    
+    if (data.length === 0) {
+        gallery.innerHTML = `
+            <div class="empty-state">
+                <p>No Facebook ads found for the selected filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    gallery.innerHTML = data.map(ad => {
+        const pageName = escapeHtml(ad.page_name || ad.handle || 'Unknown');
+        const handle = escapeHtml(ad.handle || '');
+        const url = ad.url || '#';
+        const pageUri = ad.page_profile_uri || '#';
+        const startDate = ad.start_date_string ? formatDateShort(ad.start_date_string) : '-';
+        const endDate = ad.end_date_string ? formatDateShort(ad.end_date_string) : '-';
+        const platform = parsePlatform(ad.publisher_platform);
+        const adText = parseAdText(ad.snapshot_data);
+        
+        return `
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <div class="ad-company">
+                        <strong>${pageName}</strong>
+                        <span class="ad-handle">@${handle}</span>
+                    </div>
+                    <span class="platform-badge facebook">${platform}</span>
+                </div>
+                <div class="ad-card-body">
+                    ${adText ? `<p class="ad-text">${escapeHtml(adText.substring(0, 200))}${adText.length > 200 ? '...' : ''}</p>` : ''}
+                    <div class="ad-dates">
+                        <span>📅 ${startDate} - ${endDate}</span>
+                    </div>
+                </div>
+                <div class="ad-card-footer">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="view-ad-btn">View Ad</a>
+                    <a href="${escapeHtml(pageUri)}" target="_blank" rel="noopener" class="view-page-btn">View Page</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderGoogleGallery(data) {
+    const gallery = document.getElementById('googleGallery');
+    const countEl = document.getElementById('googleGalleryCount');
+    
+    if (countEl) {
+        countEl.textContent = `${data.length} ads`;
+    }
+    
+    if (!gallery) {
+        console.warn('[Google] Gallery element not found');
+        return;
+    }
+    
+    if (data.length === 0) {
+        gallery.innerHTML = `
+            <div class="empty-state">
+                <p>No Google ads found for the selected filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    gallery.innerHTML = data.map(ad => {
+        const handle = escapeHtml(ad.handle || 'Unknown');
+        const url = ad.url || '#';
+        const imageUrl = ad.image_url || '';
+        const format = escapeHtml(ad.format || 'unknown');
+        const firstShown = ad.first_shown ? formatDateShort(ad.first_shown) : '-';
+        const lastShown = ad.last_shown ? formatDateShort(ad.last_shown) : '-';
+        
+        return `
+            <div class="ad-card">
+                <div class="ad-card-header">
+                    <div class="ad-company">
+                        <strong>${handle}</strong>
+                    </div>
+                    <span class="format-badge">${format}</span>
+                </div>
+                ${imageUrl ? `
+                    <div class="ad-image">
+                        <img src="${escapeHtml(imageUrl)}" alt="Ad creative" loading="lazy" onerror="this.style.display='none'">
+                    </div>
+                ` : ''}
+                <div class="ad-card-body">
+                    <div class="ad-dates">
+                        <span>📅 ${firstShown} - ${lastShown}</span>
+                    </div>
+                </div>
+                <div class="ad-card-footer">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="view-ad-btn">View Ad</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderPostsGallery(data) {
+    const gallery = document.getElementById('postsGallery');
+    const countEl = document.getElementById('postsGalleryCount');
+    
+    if (countEl) {
+        countEl.textContent = `${data.length} posts`;
+    }
+    
+    if (!gallery) {
+        console.warn('[Instagram] Gallery element not found');
+        return;
+    }
+    
+    if (data.length === 0) {
+        gallery.innerHTML = `
+            <div class="empty-state">
+                <p>No Instagram posts found for the selected filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by engagement (likes + comments)
+    const sortedData = [...data].sort((a, b) => {
+        const engA = (a.like_count || 0) + (a.comment_count || 0);
+        const engB = (b.like_count || 0) + (b.comment_count || 0);
+        return engB - engA;
+    });
+    
+    gallery.innerHTML = sortedData.map(post => {
+        const handle = escapeHtml(post.handle || 'Unknown');
+        const text = post.text || '';
+        const likes = (post.like_count || 0).toLocaleString();
+        const comments = (post.comment_count || 0).toLocaleString();
+        const imageUrl = post.display_uri || '';
+        const postUrl = post.url || '#';
+        const date = post.snapshot_date ? formatDateShort(post.snapshot_date) : '-';
+        
+        return `
+            <div class="post-card">
+                <div class="post-card-header">
+                    <div class="post-author">
+                        <strong>@${handle}</strong>
+                        <span class="post-date">${date}</span>
+                    </div>
+                </div>
+                ${imageUrl ? `
+                    <div class="post-image">
+                        <img src="${escapeHtml(imageUrl)}" alt="Post image" loading="lazy" onerror="this.style.display='none'">
+                    </div>
+                ` : ''}
+                <div class="post-card-body">
+                    <p class="post-text">${escapeHtml(text.substring(0, 280))}${text.length > 280 ? '...' : ''}</p>
+                    <div class="post-stats">
+                        <span class="stat-item">❤️ ${likes}</span>
+                        <span class="stat-item">💬 ${comments}</span>
+                    </div>
+                </div>
+                <div class="post-card-footer">
+                    <a href="${escapeHtml(postUrl)}" target="_blank" rel="noopener" class="view-post-btn">View Post</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderScreenshotsGrid(data) {
+    const grid = document.getElementById('screenshotsGrid');
+    
+    if (!grid) {
+        console.warn('[Screenshots] Grid element not found');
+        return;
+    }
+    
+    if (data.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <p>No screenshots found for the selected filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = data.map(screenshot => {
+        const companyName = escapeHtml(screenshot.company_name || 'Unknown');
+        const imageUrl = screenshot.image_url || '';
+        const pageType = escapeHtml(screenshot.page_type || 'page');
+        const marketingIntent = screenshot.marketing_intent || '';
+        const hasPromos = screenshot.promotions_detected;
+        const date = screenshot.created_at ? formatDateShort(screenshot.created_at) : '-';
+        
+        return `
+            <div class="screenshot-card">
+                <div class="screenshot-header">
+                    <strong>${companyName}</strong>
+                    <div class="screenshot-badges">
+                        <span class="page-type-badge">${pageType}</span>
+                        ${hasPromos ? '<span class="promo-badge">🎁 Promo</span>' : ''}
+                    </div>
+                </div>
+                ${imageUrl ? `
+                    <div class="screenshot-image">
+                        <img src="${escapeHtml(imageUrl)}" alt="Screenshot of ${companyName}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'image-error\\'>Image unavailable</div>'">
+                    </div>
+                ` : ''}
+                ${marketingIntent ? `
+                    <div class="marketing-intent">
+                        <strong>AI Analysis:</strong>
+                        <p>${escapeHtml(marketingIntent.substring(0, 200))}${marketingIntent.length > 200 ? '...' : ''}</p>
+                    </div>
+                ` : ''}
+                <div class="screenshot-footer">
+                    <span class="screenshot-date">📅 ${date}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderChangesTimeline(data) {
+    const timeline = document.getElementById('changesTimeline');
+    
+    if (!timeline) {
+        console.warn('[Website] Timeline element not found');
+        return;
+    }
+    
+    if (data.length === 0) {
+        timeline.innerHTML = `
+            <div class="empty-state">
+                <p>No website changes found for the selected filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Group by company and sort by date
+    const sortedData = [...data].sort((a, b) => new Date(b.snapshot_date) - new Date(a.snapshot_date));
+    
+    timeline.innerHTML = sortedData.map(item => {
+        const companyName = escapeHtml(item.company_name || item.handle || 'Unknown');
+        const title = escapeHtml(item.title || 'No title');
+        const metaDesc = item.meta_description || '';
+        const ogTitle = item.og_title || '';
+        const ogDesc = item.og_description || '';
+        const url = item.url || '#';
+        const date = item.snapshot_date ? formatDateShort(item.snapshot_date) : '-';
+        
+        return `
+            <div class="timeline-item">
+                <div class="timeline-header">
+                    <strong>${companyName}</strong>
+                    <span class="timeline-date">${date}</span>
+                </div>
+                <div class="timeline-body">
+                    <h4>${title}</h4>
+                    ${metaDesc ? `<p class="meta-desc">${escapeHtml(metaDesc.substring(0, 200))}${metaDesc.length > 200 ? '...' : ''}</p>` : ''}
+                    ${ogTitle ? `<div class="og-info"><strong>OG:</strong> ${escapeHtml(ogTitle)}</div>` : ''}
+                </div>
+                <div class="timeline-footer">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Visit Site</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function populateDiffCompanySelect(data) {
+    const select = document.getElementById('diffCompanySelect');
+    if (!select) return;
+    
+    const uniqueCompanies = [...new Set(data.map(d => d.company_name || d.handle).filter(Boolean))].sort();
+    
+    select.innerHTML = '<option value="">Select Company</option>' + 
+        uniqueCompanies.map(company => `<option value="${escapeHtml(company)}">${escapeHtml(company)}</option>`).join('');
+}
+
+// ==================== STAT CARDS FUNCTIONS ====================
+
+function updateStatCards() {
+    // Total Ads = Facebook + Google
+    const totalAds = facebookData.length + googleData.length;
+    const totalAdsEl = document.getElementById('totalAdsCount');
+    if (totalAdsEl) totalAdsEl.textContent = totalAds.toLocaleString();
+    
+    // Total Posts = Instagram
+    const totalPosts = instagramData.length;
+    const totalPostsEl = document.getElementById('totalPostsCount');
+    if (totalPostsEl) totalPostsEl.textContent = totalPosts.toLocaleString();
+    
+    // Total Competitors = unique handles across all sources
+    const allHandles = new Set([
+        ...facebookData.map(d => d.handle),
+        ...googleData.map(d => d.handle),
+        ...instagramData.map(d => d.handle),
+        ...websiteData.map(d => d.handle || d.company_name),
+        ...screenshotsData.map(d => d.company_name)
+    ].filter(Boolean));
+    const totalCompaniesEl = document.getElementById('totalCompaniesCount');
+    if (totalCompaniesEl) totalCompaniesEl.textContent = allHandles.size.toLocaleString();
+    
+    // Total Engagement = sum of likes + comments from Instagram
+    const totalEngagement = instagramData.reduce((sum, post) => {
+        return sum + (post.like_count || 0) + (post.comment_count || 0);
+    }, 0);
+    const totalEngagementEl = document.getElementById('totalEngagement');
+    if (totalEngagementEl) totalEngagementEl.textContent = formatNumber(totalEngagement);
+    
+    // Campaign duration stats from Facebook ads
+    updateCampaignDurationStats();
+    
+    console.log('[Dashboard] Stats updated: Ads:', totalAds, 'Posts:', totalPosts, 'Companies:', allHandles.size, 'Engagement:', totalEngagement);
+}
+
+function updateCampaignDurationStats() {
+    const durations = facebookData
+        .filter(ad => ad.start_date_string && ad.end_date_string)
+        .map(ad => {
+            const start = new Date(ad.start_date_string);
+            const end = new Date(ad.end_date_string);
+            return Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24))); // days
+        })
+        .filter(d => d > 0 && d < 365); // Filter out unreasonable values
+    
+    if (durations.length === 0) return;
+    
+    const avg = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+    const min = Math.min(...durations);
+    const max = Math.max(...durations);
+    
+    const avgEl = document.getElementById('avgCampaignDuration');
+    const minEl = document.getElementById('minCampaignDuration');
+    const maxEl = document.getElementById('maxCampaignDuration');
+    const totalEl = document.getElementById('totalCampaignsWithDuration');
+    
+    if (avgEl) avgEl.textContent = `${avg} days`;
+    if (minEl) minEl.textContent = `${min} days`;
+    if (maxEl) maxEl.textContent = `${max} days`;
+    if (totalEl) totalEl.textContent = durations.length.toString();
+}
+
+// ==================== CHART FUNCTIONS ====================
+
+function updateShareOfVoiceCharts() {
+    updateShareOfVoiceAdsChart();
+    updateShareOfVoicePostsChart();
+    updateShareOfEngagementChart();
+    updateAdFormatDistributionChart();
+}
+
+function updateShareOfVoiceAdsChart() {
+    const canvas = document.getElementById('shareOfVoiceAdsChart');
+    if (!canvas) return;
+    
+    if (shareOfVoiceAdsChart) {
+        shareOfVoiceAdsChart.destroy();
+        shareOfVoiceAdsChart = null;
+    }
+    
+    // Combine Facebook and Google ads by handle
+    const handleCounts = {};
+    [...facebookData, ...googleData].forEach(ad => {
+        const handle = ad.handle || 'Unknown';
+        handleCounts[handle] = (handleCounts[handle] || 0) + 1;
+    });
+    
+    const sortedHandles = Object.entries(handleCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    
+    if (sortedHandles.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    shareOfVoiceAdsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sortedHandles.map(([handle]) => handle),
+            datasets: [{
+                data: sortedHandles.map(([, count]) => count),
+                backgroundColor: generateColors(sortedHandles.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12 } }
+            }
+        }
+    });
+}
+
+function updateShareOfVoicePostsChart() {
+    const canvas = document.getElementById('shareOfVoicePostsChart');
+    if (!canvas) return;
+    
+    if (shareOfVoicePostsChart) {
+        shareOfVoicePostsChart.destroy();
+        shareOfVoicePostsChart = null;
+    }
+    
+    const handleCounts = {};
+    instagramData.forEach(post => {
+        const handle = post.handle || 'Unknown';
+        handleCounts[handle] = (handleCounts[handle] || 0) + 1;
+    });
+    
+    const sortedHandles = Object.entries(handleCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    
+    if (sortedHandles.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    shareOfVoicePostsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sortedHandles.map(([handle]) => handle),
+            datasets: [{
+                data: sortedHandles.map(([, count]) => count),
+                backgroundColor: generateColors(sortedHandles.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12 } }
+            }
+        }
+    });
+}
+
+function updateShareOfEngagementChart() {
+    const canvas = document.getElementById('shareOfEngagementChart');
+    if (!canvas) return;
+    
+    if (shareOfEngagementChart) {
+        shareOfEngagementChart.destroy();
+        shareOfEngagementChart = null;
+    }
+    
+    const handleEngagement = {};
+    instagramData.forEach(post => {
+        const handle = post.handle || 'Unknown';
+        const engagement = (post.like_count || 0) + (post.comment_count || 0);
+        handleEngagement[handle] = (handleEngagement[handle] || 0) + engagement;
+    });
+    
+    const sortedHandles = Object.entries(handleEngagement)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    
+    if (sortedHandles.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    shareOfEngagementChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sortedHandles.map(([handle]) => handle),
+            datasets: [{
+                data: sortedHandles.map(([, engagement]) => engagement),
+                backgroundColor: generateColors(sortedHandles.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12 } }
+            }
+        }
+    });
+}
+
+function updateAdFormatDistributionChart() {
+    const canvas = document.getElementById('adFormatDistributionChart');
+    if (!canvas) return;
+    
+    if (adFormatDistributionChart) {
+        adFormatDistributionChart.destroy();
+        adFormatDistributionChart = null;
+    }
+    
+    const formatCounts = {};
+    googleData.forEach(ad => {
+        const format = ad.format || 'unknown';
+        formatCounts[format] = (formatCounts[format] || 0) + 1;
+    });
+    
+    const sortedFormats = Object.entries(formatCounts).sort((a, b) => b[1] - a[1]);
+    
+    if (sortedFormats.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    adFormatDistributionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: sortedFormats.map(([format]) => format),
+            datasets: [{
+                data: sortedFormats.map(([, count]) => count),
+                backgroundColor: generateColors(sortedFormats.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12 } }
+            }
+        }
+    });
+}
+
+function updateTimelineCharts() {
+    updateActivityTimelineChart();
+    updateInstagramTrendChart();
+    updateAdCampaignChart();
+}
+
+function updateActivityTimelineChart() {
+    const canvas = document.getElementById('activityTimelineChart');
+    if (!canvas) return;
+    
+    if (activityTimelineChart) {
+        activityTimelineChart.destroy();
+        activityTimelineChart = null;
+    }
+    
+    // Group all data by date
+    const dateData = {};
+    
+    facebookData.forEach(ad => {
+        const date = ad.snapshot_date ? ad.snapshot_date.split('T')[0] : null;
+        if (date) {
+            if (!dateData[date]) dateData[date] = { facebook: 0, google: 0, instagram: 0 };
+            dateData[date].facebook++;
+        }
+    });
+    
+    googleData.forEach(ad => {
+        const date = ad.snapshot_date ? ad.snapshot_date.split('T')[0] : null;
+        if (date) {
+            if (!dateData[date]) dateData[date] = { facebook: 0, google: 0, instagram: 0 };
+            dateData[date].google++;
+        }
+    });
+    
+    instagramData.forEach(post => {
+        const date = post.snapshot_date ? post.snapshot_date.split('T')[0] : null;
+        if (date) {
+            if (!dateData[date]) dateData[date] = { facebook: 0, google: 0, instagram: 0 };
+            dateData[date].instagram++;
+        }
+    });
+    
+    const sortedDates = Object.keys(dateData).sort();
+    if (sortedDates.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    activityTimelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [
+                {
+                    label: 'Facebook Ads',
+                    data: sortedDates.map(d => dateData[d].facebook),
+                    borderColor: '#1877F2',
+                    backgroundColor: 'rgba(24, 119, 242, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Google Ads',
+                    data: sortedDates.map(d => dateData[d].google),
+                    borderColor: '#EA4335',
+                    backgroundColor: 'rgba(234, 67, 53, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Instagram Posts',
+                    data: sortedDates.map(d => dateData[d].instagram),
+                    borderColor: '#E4405F',
+                    backgroundColor: 'rgba(228, 64, 95, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function updateInstagramTrendChart() {
+    const canvas = document.getElementById('instagramTrendChart');
+    if (!canvas) return;
+    
+    if (instagramTrendChart) {
+        instagramTrendChart.destroy();
+        instagramTrendChart = null;
+    }
+    
+    // Group by date and sum engagement
+    const dateEngagement = {};
+    instagramData.forEach(post => {
+        const date = post.snapshot_date ? post.snapshot_date.split('T')[0] : null;
+        if (date) {
+            const engagement = (post.like_count || 0) + (post.comment_count || 0);
+            dateEngagement[date] = (dateEngagement[date] || 0) + engagement;
+        }
+    });
+    
+    const sortedDates = Object.keys(dateEngagement).sort();
+    if (sortedDates.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    instagramTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Total Engagement',
+                data: sortedDates.map(d => dateEngagement[d]),
+                borderColor: '#E4405F',
+                backgroundColor: 'rgba(228, 64, 95, 0.2)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function updateAdCampaignChart() {
+    const canvas = document.getElementById('adCampaignChart');
+    if (!canvas) return;
+    
+    if (adCampaignChart) {
+        adCampaignChart.destroy();
+        adCampaignChart = null;
+    }
+    
+    // Group ads by date
+    const dateAds = {};
+    [...facebookData, ...googleData].forEach(ad => {
+        const date = ad.snapshot_date ? ad.snapshot_date.split('T')[0] : null;
+        if (date) {
+            dateAds[date] = (dateAds[date] || 0) + 1;
+        }
+    });
+    
+    const sortedDates = Object.keys(dateAds).sort();
+    if (sortedDates.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    adCampaignChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Ad Activity',
+                data: sortedDates.map(d => dateAds[d]),
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+function updateCompetitorCards() {
+    const container = document.getElementById('competitorCards');
+    if (!container) return;
+    
+    // Aggregate stats by handle
+    const competitorStats = {};
+    
+    facebookData.forEach(ad => {
+        const handle = ad.handle || 'Unknown';
+        if (!competitorStats[handle]) {
+            competitorStats[handle] = { fbAds: 0, googleAds: 0, posts: 0, engagement: 0 };
+        }
+        competitorStats[handle].fbAds++;
+    });
+    
+    googleData.forEach(ad => {
+        const handle = ad.handle || 'Unknown';
+        if (!competitorStats[handle]) {
+            competitorStats[handle] = { fbAds: 0, googleAds: 0, posts: 0, engagement: 0 };
+        }
+        competitorStats[handle].googleAds++;
+    });
+    
+    instagramData.forEach(post => {
+        const handle = post.handle || 'Unknown';
+        if (!competitorStats[handle]) {
+            competitorStats[handle] = { fbAds: 0, googleAds: 0, posts: 0, engagement: 0 };
+        }
+        competitorStats[handle].posts++;
+        competitorStats[handle].engagement += (post.like_count || 0) + (post.comment_count || 0);
+    });
+    
+    // Sort by total activity
+    const sortedCompetitors = Object.entries(competitorStats)
+        .map(([handle, stats]) => ({
+            handle,
+            ...stats,
+            total: stats.fbAds + stats.googleAds + stats.posts
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8);
+    
+    if (sortedCompetitors.length === 0) {
+        container.innerHTML = '<p class="empty-state">No competitor data available</p>';
+        return;
+    }
+    
+    container.innerHTML = sortedCompetitors.map(comp => `
+        <div class="competitor-card">
+            <div class="competitor-name">${escapeHtml(comp.handle)}</div>
+            <div class="competitor-stats">
+                <div class="comp-stat">
+                    <span class="comp-stat-value">${comp.fbAds}</span>
+                    <span class="comp-stat-label">FB Ads</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-stat-value">${comp.googleAds}</span>
+                    <span class="comp-stat-label">Google Ads</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-stat-value">${comp.posts}</span>
+                    <span class="comp-stat-label">Posts</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-stat-value">${formatNumber(comp.engagement)}</span>
+                    <span class="comp-stat-label">Engagement</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+function formatDateShort(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+        return '-';
+    }
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function parsePlatform(platformJson) {
+    try {
+        if (typeof platformJson === 'string') {
+            const parsed = JSON.parse(platformJson);
+            if (Array.isArray(parsed)) return parsed.join(', ');
+            return parsed;
+        }
+        if (Array.isArray(platformJson)) return platformJson.join(', ');
+        return platformJson || 'Facebook';
+    } catch {
+        return 'Facebook';
+    }
+}
+
+function parseAdText(snapshotData) {
+    try {
+        if (!snapshotData) return '';
+        const data = typeof snapshotData === 'string' ? JSON.parse(snapshotData) : snapshotData;
+        if (data.body) {
+            if (typeof data.body === 'string') return data.body;
+            if (data.body.text) return data.body.text;
+        }
+        return '';
+    } catch {
+        return '';
+    }
+}
+
+function generateColors(count) {
+    const baseColors = [
+        'rgba(59, 130, 246, 0.8)',   // Blue
+        'rgba(16, 185, 129, 0.8)',   // Green
+        'rgba(245, 158, 11, 0.8)',   // Orange
+        'rgba(239, 68, 68, 0.8)',    // Red
+        'rgba(139, 92, 246, 0.8)',   // Purple
+        'rgba(236, 72, 153, 0.8)',   // Pink
+        'rgba(6, 182, 212, 0.8)',    // Cyan
+        'rgba(132, 204, 22, 0.8)',   // Lime
+        'rgba(251, 191, 36, 0.8)',   // Amber
+        'rgba(99, 102, 241, 0.8)'    // Indigo
+    ];
+    
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        colors.push(baseColors[i % baseColors.length]);
+    }
+    return colors;
 }
 
 function updateInstagramChart(data) {
