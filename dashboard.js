@@ -733,12 +733,5 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showToast(message, type = 'info') {
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    } else {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-    }
-}
 
 document.addEventListener('DOMContentLoaded', initDashboard);
