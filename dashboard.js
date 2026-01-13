@@ -41,6 +41,32 @@ const tableConfigs = {
         dateField: 'snapshot_date',
         companyField: 'handle',
         companyColumnLabel: 'Company'
+    },
+    website: {
+        tableName: 'website_data',
+        columns: [
+            { key: 'title', label: 'Title' },
+            { key: 'url', label: 'URL', type: 'link' },
+            { key: 'meta_description', label: 'Description' },
+            { key: 'og_title', label: 'OG Title' },
+            { key: 'snapshot_date', label: 'Snapshot Date' }
+        ],
+        dateField: 'snapshot_date',
+        companyField: 'handle',
+        companyColumnLabel: 'Company'
+    },
+    screenshots: {
+        tableName: 'company_screenshots',
+        columns: [
+            { key: 'page_type', label: 'Page Type' },
+            { key: 'image_url', label: 'Screenshot', type: 'link' },
+            { key: 'marketing_intent', label: 'Marketing Intent' },
+            { key: 'promotions_detected', label: 'Promotions' },
+            { key: 'created_at', label: 'Captured At' }
+        ],
+        dateField: 'created_at',
+        companyField: 'company_name',
+        companyColumnLabel: 'Company'
     }
 };
 
@@ -164,7 +190,9 @@ async function loadAllData() {
         await Promise.all([
             loadFacebookAds(filters),
             loadGoogleAds(filters),
-            loadInstagramPosts(filters)
+            loadInstagramPosts(filters),
+            loadWebsiteData(filters),
+            loadCompanyScreenshots(filters)
         ]);
     } catch (error) {
         console.error('Error in loadAllData:', error);
@@ -330,6 +358,104 @@ async function loadInstagramPosts(filters) {
         console.error('Error loading Instagram Posts:', error);
         updateTableUI('instagram', []);
         updateInstagramChart([]);
+    }
+}
+
+async function loadWebsiteData(filters) {
+    if (filters.source && filters.source !== 'website') {
+        updateTableUI('website', []);
+        return;
+    }
+    
+    console.log('[Website] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
+    
+    try {
+        let query = supabase
+            .from('website_data')
+            .select('id, handle, company_name, snapshot_date, url, title, meta_description, meta_keywords, og_title, og_description, og_url');
+        
+        if (filters.handle) {
+            query = query.eq('handle', filters.handle);
+        }
+        
+        if (filters.dateFrom) {
+            query = query.gte('snapshot_date', filters.dateFrom);
+        }
+        
+        if (filters.dateTo) {
+            const dateToEnd = filters.dateTo + 'T23:59:59.999Z';
+            query = query.lte('snapshot_date', dateToEnd);
+        }
+        
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
+        
+        if (error) {
+            console.error('Error loading Website Data:', error);
+            showToast('Error loading Website data', 'error');
+            return;
+        }
+        
+        console.log('[Website] Rows found:', data?.length);
+        
+        const safeData = (data || []).map(row => ({
+            ...row,
+            company_name: row.company_name || row.handle || 'Unknown'
+        }));
+        
+        updateTableUI('website', safeData);
+        
+    } catch (error) {
+        console.error('Error loading Website Data:', error);
+        updateTableUI('website', []);
+    }
+}
+
+async function loadCompanyScreenshots(filters) {
+    if (filters.source && filters.source !== 'screenshots') {
+        updateTableUI('screenshots', []);
+        return;
+    }
+    
+    console.log('[Screenshots] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'company:', filters.handle);
+    
+    try {
+        let query = supabase
+            .from('company_screenshots')
+            .select('id, company_id, company_name, image_url, page_type, created_at, marketing_intent, promotions_detected');
+        
+        if (filters.handle) {
+            query = query.or(`company_name.eq.${filters.handle},company_name.ilike.%${filters.handle}%`);
+        }
+        
+        if (filters.dateFrom) {
+            query = query.gte('created_at', filters.dateFrom);
+        }
+        
+        if (filters.dateTo) {
+            const dateToEnd = filters.dateTo + 'T23:59:59.999Z';
+            query = query.lte('created_at', dateToEnd);
+        }
+        
+        const { data, error } = await query.order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Error loading Company Screenshots:', error);
+            showToast('Error loading Screenshots data', 'error');
+            return;
+        }
+        
+        console.log('[Screenshots] Rows found:', data?.length);
+        
+        const safeData = (data || []).map(row => ({
+            ...row,
+            company_name: row.company_name || 'Unknown'
+        }));
+        
+        updateTableUI('screenshots', safeData);
+        
+    } catch (error) {
+        console.error('Error loading Company Screenshots:', error);
+        updateTableUI('screenshots', []);
     }
 }
 
@@ -556,10 +682,11 @@ async function populateCompanyFilter() {
     if (!companyFilter) return;
     
     try {
-        const [fbResult, googleResult, igResult] = await Promise.all([
+        const [fbResult, googleResult, igResult, websiteResult] = await Promise.all([
             supabase.from('facebook_ads').select('handle').limit(1000),
             supabase.from('google_ads').select('handle').limit(1000),
-            supabase.from('instagram_posts').select('handle').limit(1000)
+            supabase.from('instagram_posts').select('handle').limit(1000),
+            supabase.from('website_data').select('handle').limit(1000)
         ]);
         
         const allHandles = new Set();
@@ -567,6 +694,7 @@ async function populateCompanyFilter() {
         (fbResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
         (googleResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
         (igResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
+        (websiteResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
         
         dashboardHandles = Array.from(allHandles).sort((a, b) => a.localeCompare(b));
         
