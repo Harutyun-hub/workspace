@@ -71,36 +71,54 @@ const tableConfigs = {
 };
 
 async function initDashboard() {
+    console.log('[Dashboard] ========== INITIALIZING DASHBOARD ==========');
+    
     try {
+        console.log('[Dashboard] Step 1: Initializing Supabase client...');
         supabase = await initSupabase();
         
         if (!supabase) {
+            console.error('[Dashboard] CRITICAL: Supabase client is NULL');
             showToast('Failed to initialize database connection', 'error');
             return;
         }
+        console.log('[Dashboard] Supabase client initialized successfully');
         
+        console.log('[Dashboard] Step 2: Initializing auth...');
         const session = await initAuth();
+        console.log('[Dashboard] Auth session:', session ? 'ACTIVE' : 'NONE');
         
         if (!session && !window.location.pathname.includes('login.html')) {
+            console.log('[Dashboard] No session, redirecting to login...');
             window.location.href = '/login.html';
             return;
         }
         
         currentUser = getCurrentUser();
+        console.log('[Dashboard] Current user:', currentUser ? currentUser.email : 'NONE');
         
         if (!currentUser) {
             window.location.href = '/login.html';
             return;
         }
         
+        console.log('[Dashboard] Step 3: Setting up UI...');
         updateUserProfile();
         setDefaultDateFilters();
+        
+        console.log('[Dashboard] Step 4: Populating company filter...');
         await populateCompanyFilter();
+        
+        console.log('[Dashboard] Step 5: Setting up event listeners...');
         setupEventListeners();
+        
+        console.log('[Dashboard] Step 6: Loading all data...');
         await loadAllData();
         
+        console.log('[Dashboard] ========== DASHBOARD READY ==========');
+        
     } catch (error) {
-        console.error('Error initializing dashboard:', error);
+        console.error('[Dashboard] CRITICAL ERROR during initialization:', error);
         showToast('Error initializing dashboard', 'error');
     }
 }
@@ -186,16 +204,35 @@ function setupSectionToggles() {
 async function loadAllData() {
     const filters = getFilters();
     
+    console.log('[Dashboard] ========== LOADING ALL DATA ==========');
+    console.log('[Dashboard] Supabase client status:', supabase ? 'INITIALIZED' : 'NULL/UNDEFINED');
+    console.log('[Dashboard] Filters:', JSON.stringify(filters));
+    
+    if (!supabase) {
+        console.error('[Dashboard] CRITICAL: Supabase client is not initialized!');
+        showToast('Database connection not available', 'error');
+        return;
+    }
+    
     try {
-        await Promise.all([
+        const results = await Promise.allSettled([
             loadFacebookAds(filters),
             loadGoogleAds(filters),
             loadInstagramPosts(filters),
             loadWebsiteData(filters),
             loadCompanyScreenshots(filters)
         ]);
+        
+        results.forEach((result, index) => {
+            const sources = ['Facebook', 'Google', 'Instagram', 'Website', 'Screenshots'];
+            if (result.status === 'rejected') {
+                console.error(`[Dashboard] ${sources[index]} load FAILED:`, result.reason);
+            }
+        });
+        
+        console.log('[Dashboard] ========== DATA LOADING COMPLETE ==========');
     } catch (error) {
-        console.error('Error in loadAllData:', error);
+        console.error('[Dashboard] Error in loadAllData:', error);
     }
 }
 
@@ -214,12 +251,12 @@ async function loadFacebookAds(filters) {
         return;
     }
     
-    console.log('[Facebook] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
+    console.log('[Facebook] Loading with filters:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
     
     try {
         let query = supabase
             .from('facebook_ads')
-            .select('id, handle, snapshot_date, page_id, page_name, publisher_platform, start_date_string, end_date_string, page_profile_uri, url');
+            .select('*');
         
         if (filters.handle) {
             query = query.eq('handle', filters.handle);
@@ -234,15 +271,19 @@ async function loadFacebookAds(filters) {
             query = query.lte('snapshot_date', dateToEnd);
         }
         
-        const { data, error } = await query.order('snapshot_date', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false }).limit(100);
+        
+        console.log('[Facebook] Query result - data:', data?.length, 'rows, error:', error);
         
         if (error) {
-            console.error('Error loading Facebook Ads:', error);
-            showToast('Error loading Facebook Ads data', 'error');
+            console.error('[Facebook] Supabase error:', error.message, error.details, error.hint);
+            showToast('Error loading Facebook Ads: ' + error.message, 'error');
             return;
         }
         
-        console.log('[Facebook] Rows found:', data?.length);
+        if (data && data.length > 0) {
+            console.log('[Facebook] Sample row:', JSON.stringify(data[0]).substring(0, 200));
+        }
         
         const safeData = (data || []).map(row => ({
             ...row,
@@ -252,7 +293,7 @@ async function loadFacebookAds(filters) {
         updateTableUI('facebook', safeData);
         
     } catch (error) {
-        console.error('Error loading Facebook Ads:', error);
+        console.error('[Facebook] Exception:', error);
         updateTableUI('facebook', []);
     }
 }
@@ -263,12 +304,12 @@ async function loadGoogleAds(filters) {
         return;
     }
     
-    console.log('[Google] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
+    console.log('[Google] Loading with filters:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
     
     try {
         let query = supabase
             .from('google_ads')
-            .select('id, handle, snapshot_date, advertiser_id, first_shown, last_shown, url, format, image_url');
+            .select('*');
         
         if (filters.handle) {
             query = query.eq('handle', filters.handle);
@@ -283,15 +324,19 @@ async function loadGoogleAds(filters) {
             query = query.lte('snapshot_date', dateToEnd);
         }
         
-        const { data, error } = await query.order('snapshot_date', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false }).limit(100);
+        
+        console.log('[Google] Query result - data:', data?.length, 'rows, error:', error);
         
         if (error) {
-            console.error('Error loading Google Ads:', error);
-            showToast('Error loading Google Ads data', 'error');
+            console.error('[Google] Supabase error:', error.message, error.details, error.hint);
+            showToast('Error loading Google Ads: ' + error.message, 'error');
             return;
         }
         
-        console.log('[Google] Rows found:', data?.length);
+        if (data && data.length > 0) {
+            console.log('[Google] Sample row:', JSON.stringify(data[0]).substring(0, 200));
+        }
         
         const safeData = (data || []).map(row => ({
             ...row,
@@ -302,7 +347,7 @@ async function loadGoogleAds(filters) {
         updateTableUI('google', safeData);
         
     } catch (error) {
-        console.error('Error loading Google Ads:', error);
+        console.error('[Google] Exception:', error);
         updateTableUI('google', []);
     }
 }
@@ -314,12 +359,12 @@ async function loadInstagramPosts(filters) {
         return;
     }
     
-    console.log('[Instagram] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
+    console.log('[Instagram] Loading with filters:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
     
     try {
         let query = supabase
             .from('instagram_posts')
-            .select('id, handle, snapshot_date, text, like_count, comment_count, display_uri, url');
+            .select('*');
         
         if (filters.handle) {
             query = query.eq('handle', filters.handle);
@@ -334,19 +379,23 @@ async function loadInstagramPosts(filters) {
             query = query.lte('snapshot_date', dateToEnd);
         }
         
-        const { data, error } = await query.order('snapshot_date', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false }).limit(100);
+        
+        console.log('[Instagram] Query result - data:', data?.length, 'rows, error:', error);
         
         if (error) {
-            console.error('Error loading Instagram Posts:', error);
-            showToast('Error loading Instagram Posts data', 'error');
+            console.error('[Instagram] Supabase error:', error.message, error.details, error.hint);
+            showToast('Error loading Instagram Posts: ' + error.message, 'error');
             return;
         }
         
-        console.log('[Instagram] Rows found:', data?.length);
+        if (data && data.length > 0) {
+            console.log('[Instagram] Sample row:', JSON.stringify(data[0]).substring(0, 200));
+        }
         
         const safeData = (data || []).map(row => ({
             ...row,
-            display_uri: row.display_uri ?? null,
+            display_uri: row.display_uri || row.display_url || null,
             username: row.handle ?? '',
             company_name: row.handle || 'Unknown'
         }));
@@ -355,7 +404,7 @@ async function loadInstagramPosts(filters) {
         updateInstagramChart(safeData);
         
     } catch (error) {
-        console.error('Error loading Instagram Posts:', error);
+        console.error('[Instagram] Exception:', error);
         updateTableUI('instagram', []);
         updateInstagramChart([]);
     }
@@ -367,12 +416,12 @@ async function loadWebsiteData(filters) {
         return;
     }
     
-    console.log('[Website] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
+    console.log('[Website] Loading with filters:', filters.dateFrom, 'to', filters.dateTo, 'handle:', filters.handle);
     
     try {
         let query = supabase
             .from('website_data')
-            .select('id, handle, company_name, snapshot_date, url, title, meta_description, meta_keywords, og_title, og_description, og_url');
+            .select('*');
         
         if (filters.handle) {
             query = query.eq('handle', filters.handle);
@@ -387,15 +436,19 @@ async function loadWebsiteData(filters) {
             query = query.lte('snapshot_date', dateToEnd);
         }
         
-        const { data, error } = await query.order('snapshot_date', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false }).limit(100);
+        
+        console.log('[Website] Query result - data:', data?.length, 'rows, error:', error);
         
         if (error) {
-            console.error('Error loading Website Data:', error);
-            showToast('Error loading Website data', 'error');
+            console.error('[Website] Supabase error:', error.message, error.details, error.hint);
+            showToast('Error loading Website data: ' + error.message, 'error');
             return;
         }
         
-        console.log('[Website] Rows found:', data?.length);
+        if (data && data.length > 0) {
+            console.log('[Website] Sample row:', JSON.stringify(data[0]).substring(0, 200));
+        }
         
         const safeData = (data || []).map(row => ({
             ...row,
@@ -405,7 +458,7 @@ async function loadWebsiteData(filters) {
         updateTableUI('website', safeData);
         
     } catch (error) {
-        console.error('Error loading Website Data:', error);
+        console.error('[Website] Exception:', error);
         updateTableUI('website', []);
     }
 }
@@ -416,12 +469,12 @@ async function loadCompanyScreenshots(filters) {
         return;
     }
     
-    console.log('[Screenshots] Filter range:', filters.dateFrom, 'to', filters.dateTo, 'company:', filters.handle);
+    console.log('[Screenshots] Loading with filters:', filters.dateFrom, 'to', filters.dateTo, 'company:', filters.handle);
     
     try {
         let query = supabase
             .from('company_screenshots')
-            .select('id, company_id, company_name, image_url, page_type, created_at, marketing_intent, promotions_detected');
+            .select('*');
         
         if (filters.handle) {
             query = query.or(`company_name.eq.${filters.handle},company_name.ilike.%${filters.handle}%`);
@@ -436,15 +489,19 @@ async function loadCompanyScreenshots(filters) {
             query = query.lte('created_at', dateToEnd);
         }
         
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
+        
+        console.log('[Screenshots] Query result - data:', data?.length, 'rows, error:', error);
         
         if (error) {
-            console.error('Error loading Company Screenshots:', error);
-            showToast('Error loading Screenshots data', 'error');
+            console.error('[Screenshots] Supabase error:', error.message, error.details, error.hint);
+            showToast('Error loading Screenshots: ' + error.message, 'error');
             return;
         }
         
-        console.log('[Screenshots] Rows found:', data?.length);
+        if (data && data.length > 0) {
+            console.log('[Screenshots] Sample row:', JSON.stringify(data[0]).substring(0, 200));
+        }
         
         const safeData = (data || []).map(row => ({
             ...row,
@@ -454,7 +511,7 @@ async function loadCompanyScreenshots(filters) {
         updateTableUI('screenshots', safeData);
         
     } catch (error) {
-        console.error('Error loading Company Screenshots:', error);
+        console.error('[Screenshots] Exception:', error);
         updateTableUI('screenshots', []);
     }
 }
@@ -681,13 +738,25 @@ async function populateCompanyFilter() {
     
     if (!companyFilter) return;
     
+    console.log('[Dashboard] Fetching company handles from all tables...');
+    
     try {
-        const [fbResult, googleResult, igResult, websiteResult] = await Promise.all([
+        const [fbResult, googleResult, igResult, websiteResult, screenshotsResult] = await Promise.all([
             supabase.from('facebook_ads').select('handle').limit(1000),
             supabase.from('google_ads').select('handle').limit(1000),
             supabase.from('instagram_posts').select('handle').limit(1000),
-            supabase.from('website_data').select('handle').limit(1000)
+            supabase.from('website_data').select('handle').limit(1000),
+            supabase.from('company_screenshots').select('company_name').limit(1000)
         ]);
+        
+        console.log('[Dashboard] Filter query results - FB:', fbResult.data?.length, 'Google:', googleResult.data?.length, 
+                    'IG:', igResult.data?.length, 'Website:', websiteResult.data?.length, 'Screenshots:', screenshotsResult.data?.length);
+        
+        if (fbResult.error) console.error('[Dashboard] FB filter error:', fbResult.error);
+        if (googleResult.error) console.error('[Dashboard] Google filter error:', googleResult.error);
+        if (igResult.error) console.error('[Dashboard] IG filter error:', igResult.error);
+        if (websiteResult.error) console.error('[Dashboard] Website filter error:', websiteResult.error);
+        if (screenshotsResult.error) console.error('[Dashboard] Screenshots filter error:', screenshotsResult.error);
         
         const allHandles = new Set();
         
@@ -695,6 +764,7 @@ async function populateCompanyFilter() {
         (googleResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
         (igResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
         (websiteResult.data || []).forEach(row => row.handle && allHandles.add(row.handle));
+        (screenshotsResult.data || []).forEach(row => row.company_name && allHandles.add(row.company_name));
         
         dashboardHandles = Array.from(allHandles).sort((a, b) => a.localeCompare(b));
         
@@ -712,10 +782,10 @@ async function populateCompanyFilter() {
             companyFilter.value = currentValue;
         }
         
-        console.log('[Dashboard] Loaded', dashboardHandles.length, 'unique company handles');
+        console.log('[Dashboard] Loaded', dashboardHandles.length, 'unique company handles:', dashboardHandles.slice(0, 5).join(', '), '...');
         
     } catch (error) {
-        console.error('Error populating company filter:', error);
+        console.error('[Dashboard] Error populating company filter:', error);
     }
 }
 
