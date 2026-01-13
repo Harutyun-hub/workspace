@@ -1,0 +1,586 @@
+Technical Documentation: War Room & Dashboard Modules
+Table of Contents
+Overview
+Architecture Summary
+Data Source Configuration
+War Room Module
+Dashboard Module
+Database Schema Reference
+
+1. Overview
+This competitive intelligence platform consists of two primary modules:
+Module
+Purpose
+Visual Style
+War Room
+Real-time tactical command center for competitive intelligence monitoring
+Cyberpunk "Neon Glass" aesthetic (dark slate background, neon accents)
+Dashboard
+Analytics dashboard for campaign performance across advertising platforms
+Clean glassmorphism design with white/blue tones
+
+Both modules connect to a Supabase backend (PostgreSQL) for data storage and retrieval.
+
+2. Architecture Summary
+Technology Stack
+Frontend: Vanilla JavaScript (ES6+), Chart.js for visualizations
+Backend: Python HTTP server (server.py) on port 5000
+Database: Supabase (PostgreSQL-compatible)
+Authentication: Supabase Auth with Google OAuth support
+File Structure
+├── war_room.js          # War Room logic (1242 lines)
+├── war_room.html        # War Room HTML template
+├── dashboard.js         # Dashboard logic (623 lines)
+├── dashboard.html       # Dashboard HTML template
+├── SupabaseManager.js   # Singleton Supabase client manager
+├── config.js            # Configuration loader
+├── auth.js              # Authentication handling
+└── server.py            # Python HTTP server
+Data Flow Diagram
+┌─────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND                                   │
+│  ┌──────────────┐    ┌──────────────────────────────────────────┐  │
+│  │  War Room    │    │              Dashboard                    │  │
+│  │  war_room.js │    │           dashboard.js                    │  │
+│  └──────┬───────┘    └──────────────────┬───────────────────────┘  │
+│         │                               │                           │
+│         └───────────────┬───────────────┘                           │
+│                         ▼                                            │
+│              ┌─────────────────────┐                                │
+│              │  SupabaseManager.js │                                │
+│              │   (Singleton)       │                                │
+│              └──────────┬──────────┘                                │
+└─────────────────────────┼───────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      SUPABASE (PostgreSQL)                          │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐   │
+│  │   companies     │ │  intel_events   │ │  facebook_ads       │   │
+│  │   intelligence_ │ │  website_data   │ │  google_ads         │   │
+│  │   scores        │ │  screenshots    │ │  instagram_posts    │   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+
+3. Data Source Configuration
+Supabase Connection
+Environment Variables Required:
+SUPABASE_URL - Supabase project URL
+SUPABASE_ANON_KEY - Public anonymous API key
+Initialization Flow:
+SupabaseManager.initialize() is called on page load
+Config is fetched in priority order:
+Embedded script configuration
+LocalStorage cache (CONFIG_CACHE_TTL: 24 hours)
+/api/config endpoint fallback
+Supabase client is created using @supabase/supabase-js
+Code Reference (SupabaseManager.js):
+const SupabaseManager = (function() {
+   const CONFIG_CACHE_KEY = 'supabase_config_cache';
+   const CONFIG_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+  
+   // Methods: initialize(), getClient(), getSession(), getUser()
+})();
+
+4. War Room Module
+4.1 Module Overview
+The War Room is a tactical command center with a military/cyberpunk theme designed for real-time competitive intelligence monitoring.
+Entry Point: war_room.js (wrapped in IIFE for encapsulation)
+Default Primary Company: TotoGaming (ID: 9b67e411-ec00-47d9-87d4-a56dacf41e8a)
+4.2 Component Architecture
+WAR ROOM
+├── Header
+│   ├── System Time (real-time clock)
+│   ├── Connection Status (LIVE/SYNCING/OFFLINE/ERROR)
+│   └── Last Scan Time
+│
+├── Command Deck
+│   ├── DEFCON Module
+│   ├── Aggression Gauge
+│   ├── Battlefield Chart
+│   └── Intel Feed
+│
+├── Mission Control
+│   ├── Friendly Company Selector
+│   └── Hostile Company Selector
+│
+└── Digital Surveillance
+   ├── Tech Radar
+   ├── Visual Intercept (Time Glider)
+   └── Market Intel
+4.3 Component Details
+4.3.1 DEFCON Module
+Purpose: Displays current threat level status
+Data Source: intelligence_scores table + IntelligenceUtils.calculateThreatLevel()
+Threat Levels:
+Level
+Badge
+Icon
+Description
+CRITICAL
+Red
+🔴
+"Immediate attention required. Competitor activity at dangerous levels."
+ELEVATED
+Yellow
+🟡
+"Increased competitor movements detected. Monitor closely."
+SECURE
+Green
+🟢
+"All systems nominal. No significant competitor threats detected."
+
+Update Logic:
+function updateDefconModule(threatLevel) {
+   const level = (threatLevel || '').toUpperCase();
+   // Applies CSS classes: threat-critical, threat-elevated, threat-secure
+   // Updates badge, icon, text, and description
+}
+Visual Effects: CSS animations (breathe-critical, breathe-elevated, breathe-secure)
+
+4.3.2 Aggression Gauge
+Purpose: Visual representation of competitor aggression score (0-100)
+Data Source: IntelligenceUtils.getLocalThreatLevel().score
+Score Interpretation:
+Range
+Class
+Description
+0-30
+low
+"Low 🟢 - Quiet market. Position stable."
+31-70
+medium
+"Moderate 👀 - Active competitor movements. Stay vigilant."
+71-100
+high
+"HIGH 🔥 - Critical warning. Defensive measures recommended."
+
+Code Logic:
+function updateAggressionGauge(score) {
+   const clampedScore = Math.max(0, Math.min(100, parseInt(score) || 0));
+   barEl.style.width = clampedScore + '%';
+   // Dynamic description based on score range
+}
+
+4.3.3 Battlefield Chart
+Purpose: Stacked bar chart showing 30-day activity comparison between "Us" vs "Them"
+Data Source: intel_events table
+Chart Type: Chart.js stacked bar chart
+Data Query:
+const { data } = await client
+   .from('intel_events')
+   .select('company_id, event_type, headline, description, severity, created_at')
+   .in('company_id', [primaryCompanyId, competitorCompanyId])
+   .gte('created_at', thirtyDaysAgo.toISOString())
+   .order('created_at', { ascending: false });
+Data Transformation:
+Events are categorized into:
+Event Type
+Category
+Source
+NEW_AD_LAUNCH
+paid
+ad
+SOCIAL_POST
+organic
+social
+PROMO_DETECTED
+organic
+creative (isImportant: true)
+SCREENSHOT_CAPTURED
+organic
+creative
+
+Chart Datasets (4 series, stacked):
+Friendly Paid Ads - Blue solid (#3B82F6) - Stack: "Us"
+Friendly Organic - Blue transparent - Stack: "Us"
+Enemy Paid Ads - Red solid (#EF4444) - Stack: "Them" (negative values)
+Enemy Organic - Red transparent - Stack: "Them" (negative values)
+Aggregation Logic:
+function aggregateByDay(data) {
+   // Creates 30-day map with keys: friendlyPaid, friendlyOrganic, hostilePaid, hostileOrganic
+   // Returns { labels, isoDates, friendlyPaidData, friendlyOrganicData, hostilePaidData, hostileOrganicData }
+}
+Interactive Behavior: Hovering on chart bars triggers updateIntelFeed() with the hovered date.
+
+4.3.4 Intel Feed
+Purpose: Dynamic sidebar showing intelligence events for a specific date (triggered by chart hover)
+Data Source: battlefieldRawData (cached from Battlefield fetch)
+Display Logic:
+Filters events by selected date and competitor company
+Sorts by severity (HIGH > MEDIUM > LOW)
+Displays top 3 events as "Intel Cards"
+Intel Card Rendering:
+function renderIntelCard(item) {
+   const eventTypeIcon = {
+       'NEW_AD_LAUNCH': '📢',
+       'SOCIAL_POST': '📱',
+       'PROMO_DETECTED': '🎁',
+       'SCREENSHOT_CAPTURED': '📸'
+   };
+   const severityIcon = { 'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢' };
+   // Returns HTML card with type, severity, and content
+}
+
+4.3.5 Mission Control
+Purpose: Company selection interface for "Friendly" (primary) and "Hostile" (competitor) entities
+Data Source: companies table
+Query:
+const { data } = await client
+   .from('companies')
+   .select('id, name, logo_url')
+   .order('name');
+Default Behavior:
+Friendly defaults to TotoGaming (TOTOGAMING_ID)
+Hostile defaults to first non-TotoGaming company
+Event Handlers:
+friendlySelect.change → Updates primaryCompanyId, reloads Battlefield
+hostileSelect.change → Updates competitorCompanyId, reloads Battlefield + Surveillance
+
+4.3.6 Tech Radar
+Purpose: Identifies technologies used by competitor
+Data Source: website_data table
+Query:
+const { data } = await supabase
+   .from('website_data')
+   .select('detected_technologies')
+   .eq('company_id', competitorCompanyId)
+   .order('created_at', { ascending: false })
+   .limit(1)
+   .maybeSingle();
+Technology Categories:
+Status
+Description
+Active
+Directly detected on website
+Inferred
+Likely managed via GTM or similar
+Not Detected
+Technology not found
+
+
+4.3.7 Visual Intercept (Time Glider)
+Purpose: Historical screenshot browser with AI-powered analysis
+Data Source: screenshots table
+Query:
+const { data } = await supabase
+   .from('screenshots')
+   .select('id, company_id, image_url, created_at, ai_analysis')
+   .eq('company_id', competitorCompanyId)
+   .order('created_at', { ascending: false })
+   .limit(30);
+UI Components:
+Image Display: Screenshot thumbnail with date badge
+Slider: Range input to scrub through historical screenshots
+AI Tactical Insight: Displays ai_analysis data (marketing intent headlines, subtext)
+Slider Interaction:
+slider.addEventListener('input', (e) => {
+   const screenshot = timeGliderScreenshots[parseInt(e.target.value)];
+   image.src = screenshot.image_url;
+   aiInsightContainer.innerHTML = renderAiTacticalInsight(screenshot);
+});
+
+4.3.8 Market Intel
+Purpose: Tracks active competitor promotions
+Data Source: website_data.active_promotions (JSON field)
+Query:
+const { data } = await supabase
+   .from('website_data')
+   .select('active_promotions, created_at')
+   .eq('company_id', competitorCompanyId)
+   .order('created_at', { ascending: false })
+   .limit(1)
+   .maybeSingle();
+Promo Categories (Pill System):
+Category
+Icon
+CSS Class
+money
+💰
+money
+spins
+🎰
+spins
+chips (Free Bet)
+🎫
+chips
+events
+🏆
+events
+
+Data Structure Expected:
+{
+   "active_promotions": {
+       "headline": "Summer Bonus",
+       "description": "Limited time offer",
+       "offers": {
+           "money": ["100% up to $500"],
+           "spins": ["50 Free Spins"],
+           "chips": ["$10 Free Bet"],
+           "events": ["World Cup Special"]
+       }
+   }
+}
+
+4.4 Refresh Intervals
+Component
+Interval
+Function
+System Time
+1 second
+updateSystemTime()
+Dashboard Refresh
+30 seconds
+refreshDashboard()
+Battlefield Data
+30 seconds
+loadBattlefieldData()
+Surveillance Data
+30 seconds
+loadSurveillanceData()
+
+
+5. Dashboard Module
+5.1 Module Overview
+The Dashboard provides campaign performance analytics across Facebook, Google, and Instagram advertising platforms.
+Entry Point: dashboard.js
+Authentication Required: Yes (redirects to /login.html if not authenticated)
+5.2 Initialization Flow
+async function initDashboard() {
+   supabase = await initSupabase();
+   const session = await initAuth();
+  
+   if (!session) {
+       window.location.href = '/login.html';
+       return;
+   }
+  
+   currentUser = getCurrentUser();
+   updateUserProfile();
+   await populateCompanyFilter();
+   setupEventListeners();
+   await loadAllData();
+}
+5.3 Filter System
+Filter Elements:
+Filter
+ID
+Purpose
+Date From
+dateFrom
+Start date for data range
+Date To
+dateTo
+End date for data range
+Company
+companyFilter
+Filter by specific company
+Source
+sourceFilter
+Filter by platform (facebook/google/instagram)
+
+Filter Retrieval:
+function getFilters() {
+   return {
+       dateFrom: document.getElementById('dateFrom')?.value,
+       dateTo: document.getElementById('dateTo')?.value,
+       company: document.getElementById('companyFilter')?.value,
+       source: document.getElementById('sourceFilter')?.value
+   };
+}
+Debounced Updates: Filter changes trigger data reload with 300ms debounce.
+
+5.4 Data Tables Configuration
+const tableConfigs = {
+   facebook: {
+       tableName: 'facebook_ads',
+       columns: [
+           { key: 'publisher_platform', label: 'Platform' },
+           { key: 'ad_text', label: 'Ad Text' },
+           { key: 'url', label: 'URL', type: 'link' },
+           { key: 'ad_image_url', label: 'Image URL', type: 'link' },
+           { key: 'ad_cta_type', label: 'CTA Type' },
+           { key: 'ad_display_format', label: 'Display Format' },
+           { key: 'start_date_string', label: 'Start Date' },
+           { key: 'end_date_string', label: 'End Date' }
+       ],
+       dateField: 'start_date_string',
+       companyField: 'page_name',
+       companyColumnLabel: 'Company'
+   },
+   google: {
+       tableName: 'google_ads',
+       columns: [
+           { key: 'advertiser_id', label: 'Advertiser ID' },
+           { key: 'url', label: 'URL', type: 'link' },
+           { key: 'format', label: 'Format' },
+           { key: 'image_url', label: 'Image URL', type: 'link' },
+           { key: 'first_show', label: 'First Show' },
+           { key: 'last_show', label: 'Last Show' }
+       ],
+       dateField: 'first_show',
+       companyField: 'handle',
+       companyColumnLabel: 'Company'
+   },
+   instagram: {
+       tableName: 'instagram_posts',
+       columns: [
+           { key: 'text', label: 'Text' },
+           { key: 'like_count', label: 'Likes' },
+           { key: 'comment_count', label: 'Comments' },
+           { key: 'display_url', label: 'Display URL', type: 'link' },
+           { key: 'url', label: 'URL', type: 'link' }
+       ],
+       dateField: 'created_at',
+       companyField: 'username',
+       companyColumnLabel: 'Company'
+   }
+};
+
+5.5 Data Loading Functions
+All data loading happens in parallel:
+async function loadAllData() {
+   await Promise.all([
+       loadFacebookAds(filters),
+       loadGoogleAds(filters),
+       loadInstagramPosts(filters)
+   ]);
+}
+5.5.1 Facebook Ads Query
+async function loadFacebookAds(filters) {
+   let query = supabase
+       .from('facebook_ads')
+       .select('*, companies(company_key, name, logo_url)');
+  
+   if (filters.company) {
+       query = supabase
+           .from('facebook_ads')
+           .select('*, companies!inner(company_key, name, logo_url)')
+           .eq('companies.company_key', filters.company);
+   }
+  
+   if (filters.dateFrom) query = query.gte('snapshot_date', filters.dateFrom);
+   if (filters.dateTo) query = query.lte('snapshot_date', filters.dateTo);
+  
+   const { data } = await query.order('snapshot_date', { ascending: false });
+   updateTableUI('facebook', data);
+}
+5.5.2 Google Ads Query
+Same pattern as Facebook, using google_ads table with snapshot_date for filtering.
+5.5.3 Instagram Posts Query
+Same pattern, using instagram_posts table with created_at for filtering. Additionally updates Instagram charts.
+
+5.6 Table Rendering
+Function: updateTableUI(source, data)
+Features:
+Dynamic header generation based on config
+Company logo + name display with fallback
+Link rendering for URL-type columns
+Empty state handling
+Row count display
+Company Logo Rendering:
+function renderCompanyWithLogo(name, logoUrl, size = 20) {
+   if (logoUrl) {
+       return `<div class="company-with-logo">
+           <img src="${logoUrl}" onerror="this.style.display='none'">
+           <div class="company-logo-fallback" style="display:none">
+               ${name.charAt(0).toUpperCase()}
+           </div>
+           <span class="company-name">${name}</span>
+       </div>`;
+   }
+   // Fallback to initial letter
+}
+
+5.7 Instagram Charts
+Chart Types:
+Bar Chart (instagramChart) - Top 10 posts by likes
+Doughnut Chart (instagramChart2) - Engagement distribution
+Data Processing:
+const sortedData = [...data]
+   .filter(item => item.username && (item.like_count || item.comment_count))
+   .sort((a, b) => (b.like_count || 0) - (a.like_count || 0))
+   .slice(0, 10);
+Bar Chart Datasets:
+Likes: rgba(59, 130, 246, 0.8) (Blue)
+Comments: rgba(16, 185, 129, 0.8) (Green)
+Doughnut Chart: Shows total engagement (likes + comments) per account with 10 distinct colors.
+
+5.8 Company Filter Population
+async function populateCompanyFilter() {
+   const { data } = await supabase
+       .from('companies')
+       .select('company_key, name, logo_url')
+       .order('company_key', { ascending: true });
+  
+   // Populates dropdown with "All Companies" default option
+   dashboardCompaniesData = data;
+}
+
+6. Database Schema Reference
+Tables Used by War Room
+Table
+Purpose
+Key Fields
+companies
+Company master data
+id, name, logo_url
+intelligence_scores
+Threat level data
+* (single record)
+intel_events
+Competitive intelligence events
+company_id, event_type, headline, description, severity, created_at
+website_data
+Website monitoring data
+company_id, detected_technologies, active_promotions, created_at
+screenshots
+Historical website screenshots
+company_id, image_url, created_at, ai_analysis
+
+Tables Used by Dashboard
+Table
+Purpose
+Key Fields
+companies
+Company lookup
+company_key, name, logo_url
+facebook_ads
+Facebook ad data
+page_name, ad_text, url, snapshot_date, + joins to companies
+google_ads
+Google ad data
+advertiser_id, url, format, snapshot_date, + joins to companies
+instagram_posts
+Instagram post data
+username, text, like_count, comment_count, created_at, + joins to companies
+
+Foreign Key Relationships
+companies.id ──────┬──> intel_events.company_id
+                  ├──> website_data.company_id 
+                  └──> screenshots.company_id
+companies.company_key ──┬──> facebook_ads (via join)
+                       ├──> google_ads (via join)
+                       └──> instagram_posts (via join)
+
+7. Key Technical Notes for Architect
+Security Considerations
+Uses Supabase Row Level Security (RLS) via anon key
+Session-based authentication required for Dashboard
+Config cached in localStorage (24hr TTL)
+Performance Patterns
+Parallel data loading with Promise.all()
+Debounced filter updates (300ms)
+Chart instance destruction before recreation
+30-second polling intervals for real-time updates
+Error Handling
+Connection status indicators (LIVE/SYNCING/OFFLINE/ERROR)
+Toast notifications for user feedback
+Graceful fallbacks for missing data
+Extensibility Points
+tableConfigs object for adding new data sources
+PROMO_CATEGORIES for new promotion types
+Event type mappings in fetchBattlefieldData()
+
+This documentation provides a complete technical overview of the War Room and Dashboard modules. The AI architect should have full context for reviewing the system architecture, data flow, and implementation patterns.
+
