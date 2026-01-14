@@ -1124,7 +1124,7 @@ function updatePostsGallery() {
     container.innerHTML = sortedPosts.map(post => `
         <div class="post-card">
             ${post.display_uri ? 
-                `<img class="post-image" src="${escapeHtml(post.display_uri)}" alt="Post image" onerror="this.outerHTML='<div class=\\'post-image-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\'><path d=\\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\\' fill=\\'currentColor\\'/></svg></div>'">` : 
+                `<img class="post-image" src="${escapeHtml(post.display_uri)}" alt="Post image" referrerpolicy="no-referrer" crossorigin="anonymous" onerror="this.outerHTML='<div class=\\'post-image-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\'><path d=\\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\\' fill=\\'currentColor\\'/></svg></div>'">` : 
                 `<div class="post-image-placeholder"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/></svg></div>`
             }
             <div class="post-content">
