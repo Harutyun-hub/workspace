@@ -271,14 +271,14 @@ async function loadInstagramPosts(filters) {
         }
         
         if (filters.dateFrom) {
-            query = query.gte('created_at', filters.dateFrom);
+            query = query.gte('snapshot_date', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('created_at', filters.dateTo);
+            query = query.lte('snapshot_date', filters.dateTo);
         }
         
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
         
         if (error) {
             console.error('Error loading Instagram posts:', error);
@@ -304,14 +304,14 @@ async function loadFacebookAds(filters) {
         }
         
         if (filters.dateFrom) {
-            query = query.gte('start_date_string', filters.dateFrom);
+            query = query.gte('snapshot_date', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('start_date_string', filters.dateTo);
+            query = query.lte('snapshot_date', filters.dateTo);
         }
         
-        const { data, error } = await query.order('start_date_string', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
         
         if (error) {
             console.error('Error loading Facebook ads:', error);
@@ -337,14 +337,14 @@ async function loadGoogleAds(filters) {
         }
         
         if (filters.dateFrom) {
-            query = query.gte('first_shown', filters.dateFrom);
+            query = query.gte('snapshot_date', filters.dateFrom);
         }
         
         if (filters.dateTo) {
-            query = query.lte('first_shown', filters.dateTo);
+            query = query.lte('snapshot_date', filters.dateTo);
         }
         
-        const { data, error } = await query.order('first_shown', { ascending: false });
+        const { data, error } = await query.order('snapshot_date', { ascending: false });
         
         if (error) {
             console.error('Error loading Google ads:', error);
