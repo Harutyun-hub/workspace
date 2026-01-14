@@ -296,7 +296,7 @@ async function loadFacebookAds(filters) {
     try {
         let query = supabase
             .from('facebook_ads')
-            .select('id, page_name, ad_image_url, ad_text, ad_cta_type, ad_display_format, ad_link_url, start_date_string, end_date_string, company_id, snapshot_date');
+            .select('id, page_name, ad_image_url, ad_text, ad_cta_type, ad_display_format, ad_link_url, url, start_date_string, end_date_string, company_id, snapshot_date');
         
         const companyIds = getCompanyIdsFromFilters(filters);
         if (companyIds.length > 0) {
@@ -1188,7 +1188,7 @@ function updateFacebookGallery() {
         return `
             <div class="ad-card">
                 ${ad.ad_image_url ? 
-                    `<img class="ad-image" src="${escapeHtml(ad.ad_image_url)}" alt="Ad creative" onerror="this.outerHTML='<div class=\\'ad-image-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\'><path d=\\'M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z\\' fill=\\'currentColor\\'/></svg></div>'">` : 
+                    `<img class="ad-image" src="/api/proxy-image?url=${encodeURIComponent(ad.ad_image_url)}" alt="Ad creative" loading="lazy" onerror="this.outerHTML='<div class=\\'ad-image-placeholder\\'><svg width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\'><path d=\\'M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z\\' fill=\\'currentColor\\'/></svg></div>'">` : 
                     `<div class="ad-image-placeholder"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" fill="currentColor"/></svg></div>`
                 }
                 <div class="ad-content">
@@ -1213,7 +1213,10 @@ function updateFacebookGallery() {
                             return `<div class="ad-brand-logo">${companyName.charAt(0).toUpperCase()}</div>`;
                         })()}
                         <span class="ad-brand-name">${escapeHtml(ad.page_name || 'Unknown')}</span>
-                        ${ad.ad_link_url ? `<a href="${escapeHtml(ad.ad_link_url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
+                        <div class="ad-actions">
+                            ${ad.url ? `<a href="${escapeHtml(ad.url)}" target="_blank" rel="noopener noreferrer" class="ad-link ad-library-link">Ad Library</a>` : ''}
+                            ${ad.ad_link_url ? `<a href="${escapeHtml(ad.ad_link_url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
+                        </div>
                     </div>
                 </div>
             </div>

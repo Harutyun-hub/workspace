@@ -584,6 +584,27 @@
     background: var(--color-blue-700);
 }
 
+.ad-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.ad-actions .ad-link {
+    margin-left: 0;
+}
+
+.ad-library-link {
+    background: transparent;
+    border: 1px solid var(--color-blue-600);
+    color: var(--color-blue-600);
+}
+
+.ad-library-link:hover {
+    background: var(--color-blue-600);
+    color: white;
+}
+
 .screenshots-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
