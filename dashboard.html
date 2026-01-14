@@ -410,6 +410,14 @@
                         <div class="creative-content" id="postsCreative">
                             <div class="gallery-header">
                                 <span class="gallery-count" id="postsGalleryCount">0 posts</span>
+                                <div class="view-toggle" data-gallery="posts">
+                                    <button class="view-btn active" data-view="grid" title="Grid View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z"/></svg>
+                                    </button>
+                                    <button class="view-btn" data-view="table" title="Table View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg>
+                                    </button>
+                                </div>
                                 <span class="gallery-sort">Sorted by virality</span>
                             </div>
                             <div class="posts-gallery" id="postsGallery">
@@ -418,11 +426,34 @@
                                     <span>Loading top posts...</span>
                                 </div>
                             </div>
+                            <div class="data-table-container hidden" id="postsTable">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Account</th>
+                                            <th>Content</th>
+                                            <th>Likes</th>
+                                            <th>Comments</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="postsTableBody"></tbody>
+                                </table>
+                            </div>
                         </div>
                         
                         <div class="creative-content hidden" id="facebookCreative">
                             <div class="gallery-header">
                                 <span class="gallery-count" id="facebookGalleryCount">0 ads</span>
+                                <div class="view-toggle" data-gallery="facebook">
+                                    <button class="view-btn active" data-view="grid" title="Grid View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z"/></svg>
+                                    </button>
+                                    <button class="view-btn" data-view="table" title="Table View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg>
+                                    </button>
+                                </div>
                                 <span class="gallery-sort">Most recent first</span>
                             </div>
                             <div class="ads-gallery" id="facebookGallery">
@@ -431,11 +462,35 @@
                                     <span>Loading Facebook ads...</span>
                                 </div>
                             </div>
+                            <div class="data-table-container hidden" id="facebookTable">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Page</th>
+                                            <th>Content</th>
+                                            <th>CTA</th>
+                                            <th>Format</th>
+                                            <th>Date Range</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="facebookTableBody"></tbody>
+                                </table>
+                            </div>
                         </div>
                         
                         <div class="creative-content hidden" id="googleCreative">
                             <div class="gallery-header">
                                 <span class="gallery-count" id="googleGalleryCount">0 ads</span>
+                                <div class="view-toggle" data-gallery="google">
+                                    <button class="view-btn active" data-view="grid" title="Grid View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z"/></svg>
+                                    </button>
+                                    <button class="view-btn" data-view="table" title="Table View">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg>
+                                    </button>
+                                </div>
                                 <span class="gallery-sort">Most recent first</span>
                             </div>
                             <div class="ads-gallery" id="googleGallery">
@@ -443,6 +498,20 @@
                                     <div class="loading-spinner"><img src="attached_assets/Deep_context_logo_small_1767380144359.png" alt="Loading"></div>
                                     <span>Loading Google ads...</span>
                                 </div>
+                            </div>
+                            <div class="data-table-container hidden" id="googleTable">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Format</th>
+                                            <th>Region</th>
+                                            <th>Date Range</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="googleTableBody"></tbody>
+                                </table>
                             </div>
                         </div>
                         

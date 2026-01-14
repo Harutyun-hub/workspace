@@ -56,6 +56,7 @@ async function initIntelligenceDashboard() {
         setupPillarTabs();
         setupCreativeTabs();
         setupEspionageTabs();
+        setupViewToggles();
         setupEventListeners();
         await populateCompanyFilters();
         await loadAllData();
@@ -113,6 +114,207 @@ function setupEspionageTabs() {
             document.getElementById(espionage + 'Espionage').classList.remove('hidden');
         });
     });
+}
+
+const viewPreferences = {
+    posts: localStorage.getItem('viewPref_posts') || 'grid',
+    facebook: localStorage.getItem('viewPref_facebook') || 'grid',
+    google: localStorage.getItem('viewPref_google') || 'grid'
+};
+
+function setupViewToggles() {
+    const toggles = document.querySelectorAll('.view-toggle');
+    toggles.forEach(toggle => {
+        const gallery = toggle.dataset.gallery;
+        const savedView = viewPreferences[gallery];
+        
+        if (savedView === 'table') {
+            const gridBtn = toggle.querySelector('[data-view="grid"]');
+            const tableBtn = toggle.querySelector('[data-view="table"]');
+            gridBtn.classList.remove('active');
+            tableBtn.classList.add('active');
+        }
+        
+        toggle.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                const galleryName = toggle.dataset.gallery;
+                
+                toggle.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                viewPreferences[galleryName] = view;
+                localStorage.setItem('viewPref_' + galleryName, view);
+                
+                switchView(galleryName, view);
+            });
+        });
+    });
+}
+
+function initializeViewPreferences() {
+    Object.keys(viewPreferences).forEach(gallery => {
+        const savedView = viewPreferences[gallery];
+        if (savedView === 'table') {
+            switchView(gallery, 'table');
+        }
+    });
+}
+
+function switchView(gallery, view) {
+    const galleryIds = {
+        posts: 'postsGallery',
+        facebook: 'facebookGallery',
+        google: 'googleGallery'
+    };
+    const tableIds = {
+        posts: 'postsTable',
+        facebook: 'facebookTable',
+        google: 'googleTable'
+    };
+    
+    const galleryEl = document.getElementById(galleryIds[gallery]);
+    const tableEl = document.getElementById(tableIds[gallery]);
+    
+    if (!galleryEl || !tableEl) return;
+    
+    if (view === 'grid') {
+        galleryEl.classList.remove('hidden');
+        tableEl.classList.add('hidden');
+    } else {
+        galleryEl.classList.add('hidden');
+        tableEl.classList.remove('hidden');
+        updateTableView(gallery);
+    }
+}
+
+function updateTableView(gallery) {
+    switch(gallery) {
+        case 'posts':
+            renderPostsTable();
+            break;
+        case 'facebook':
+            renderFacebookTable();
+            break;
+        case 'google':
+            renderGoogleTable();
+            break;
+    }
+}
+
+function renderPostsTable() {
+    const tbody = document.getElementById('postsTableBody');
+    if (!tbody) return;
+    
+    const posts = allData.instagramPosts.slice(0, 20);
+    
+    if (posts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">No posts found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = posts.map(post => {
+        const imageUrl = post.display_uri ? `/api/proxy-image?url=${encodeURIComponent(post.display_uri)}` : '';
+        return `
+            <tr>
+                <td>
+                    ${imageUrl ? 
+                        `<img class="table-thumbnail" src="${imageUrl}" alt="Post" onerror="this.outerHTML='<div class=\\'table-thumbnail-placeholder\\'><svg viewBox=\\'0 0 24 24\\' fill=\\'currentColor\\'><path d=\\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\\'/></svg></div>'">` : 
+                        `<div class="table-thumbnail-placeholder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>`
+                    }
+                </td>
+                <td><strong>@${escapeHtml(post.username || 'Unknown')}</strong></td>
+                <td class="table-content">${escapeHtml(post.caption || '')}</td>
+                <td>${formatNumber(post.likes_count || 0)}</td>
+                <td>${formatNumber(post.comments_count || 0)}</td>
+                <td class="table-actions">
+                    ${post.url ? `<a href="${escapeHtml(post.url)}" target="_blank" rel="noopener noreferrer" class="ad-link">View</a>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderFacebookTable() {
+    const tbody = document.getElementById('facebookTableBody');
+    if (!tbody) return;
+    
+    const ads = allData.facebookAds.slice(0, 20);
+    
+    if (ads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No ads found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = ads.map(ad => {
+        const imageUrl = ad.ad_image_url ? `/api/proxy-image?url=${encodeURIComponent(ad.ad_image_url)}` : '';
+        let adText = ad.ad_text || '';
+        try {
+            if (adText.startsWith('{')) {
+                const parsed = JSON.parse(adText);
+                adText = parsed.text || adText;
+            }
+        } catch (e) {}
+        
+        return `
+            <tr>
+                <td>
+                    ${imageUrl ? 
+                        `<img class="table-thumbnail" src="${imageUrl}" alt="Ad" onerror="this.outerHTML='<div class=\\'table-thumbnail-placeholder\\'><svg viewBox=\\'0 0 24 24\\' fill=\\'currentColor\\'><path d=\\'M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z\\'/></svg></div>'">` : 
+                        `<div class="table-thumbnail-placeholder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg></div>`
+                    }
+                </td>
+                <td><strong>${escapeHtml(ad.page_name || 'Unknown')}</strong></td>
+                <td class="table-content">${escapeHtml(adText)}</td>
+                <td>${ad.ad_cta_type ? `<span class="table-badge">${escapeHtml(ad.ad_cta_type.replace(/_/g, ' '))}</span>` : '-'}</td>
+                <td>${ad.ad_display_format ? `<span class="table-badge">${escapeHtml(ad.ad_display_format)}</span>` : '-'}</td>
+                <td>${ad.start_date_string ? formatDate(ad.start_date_string) : 'N/A'} - ${ad.end_date_string ? formatDate(ad.end_date_string) : 'Active'}</td>
+                <td class="table-actions">
+                    ${ad.url ? `<a href="${escapeHtml(ad.url)}" target="_blank" rel="noopener noreferrer" class="ad-link ad-library-link">Ad Library</a>` : ''}
+                    ${ad.ad_link_url ? `<a href="${escapeHtml(ad.ad_link_url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderGoogleTable() {
+    const tbody = document.getElementById('googleTableBody');
+    if (!tbody) return;
+    
+    const ads = allData.googleAds.slice(0, 20);
+    
+    if (ads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">No ads found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = ads.map(ad => {
+        const imageUrl = ad.image_url ? `/api/proxy-image?url=${encodeURIComponent(ad.image_url)}` : '';
+        
+        return `
+            <tr>
+                <td>
+                    ${imageUrl ? 
+                        `<img class="table-thumbnail" src="${imageUrl}" alt="Ad" onerror="this.outerHTML='<div class=\\'table-thumbnail-placeholder\\'><svg viewBox=\\'0 0 24 24\\' fill=\\'currentColor\\'><path d=\\'M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z\\'/></svg></div>'">` : 
+                        `<div class="table-thumbnail-placeholder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg></div>`
+                    }
+                </td>
+                <td>${ad.format ? `<span class="table-badge">${escapeHtml(ad.format)}</span>` : '-'}</td>
+                <td>${escapeHtml(ad.region_name || '-')}</td>
+                <td>${ad.first_shown ? formatDate(ad.first_shown) : 'N/A'} - ${ad.last_shown ? formatDate(ad.last_shown) : 'Active'}</td>
+                <td class="table-actions">
+                    ${ad.url ? `<a href="${escapeHtml(ad.url)}" target="_blank" rel="noopener noreferrer" class="ad-link">Visit</a>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
 function setupEventListeners() {
@@ -958,6 +1160,8 @@ function updateCreativeView() {
     updateGoogleGallery();
     updateAdFormatDistributionChart();
     updateCtaTypeBreakdownChart();
+    
+    initializeViewPreferences();
 }
 
 function updateAdFormatDistributionChart() {
