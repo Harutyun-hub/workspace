@@ -206,7 +206,13 @@ function renderPostsTable() {
     const tbody = document.getElementById('postsTableBody');
     if (!tbody) return;
     
-    const posts = allData.instagramPosts.slice(0, 20);
+    const posts = [...allData.instagramPosts]
+        .sort((a, b) => {
+            const engA = (a.like_count || 0) + (a.comment_count || 0);
+            const engB = (b.like_count || 0) + (b.comment_count || 0);
+            return engB - engA;
+        })
+        .slice(0, 20);
     
     if (posts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">No posts found</td></tr>';
@@ -224,9 +230,9 @@ function renderPostsTable() {
                     }
                 </td>
                 <td><strong>@${escapeHtml(post.username || 'Unknown')}</strong></td>
-                <td class="table-content">${escapeHtml(post.caption || '')}</td>
-                <td>${formatNumber(post.likes_count || 0)}</td>
-                <td>${formatNumber(post.comments_count || 0)}</td>
+                <td class="table-content">${escapeHtml(post.text || '')}</td>
+                <td>${formatNumber(post.like_count || 0)}</td>
+                <td>${formatNumber(post.comment_count || 0)}</td>
                 <td class="table-actions">
                     ${post.url ? `<a href="${escapeHtml(post.url)}" target="_blank" rel="noopener noreferrer" class="ad-link">View</a>` : ''}
                 </td>
