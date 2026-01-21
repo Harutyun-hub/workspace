@@ -24,7 +24,66 @@ if not SUPABASE_ANON_KEY:
     print("ERROR: Missing environment variable SUPABASE_ANON_KEY", file=sys.stderr)
     sys.exit(1)
 
+INDUSTRY_CONFIG = {
+    'igaming': {
+        'supabase_url': os.environ.get('IGAMING_SUPABASE_URL', ''),
+        'supabase_anon_key': os.environ.get('IGAMING_SUPABASE_ANON_KEY', ''),
+        'n8n_webhook': os.environ.get('IGAMING_N8N_WEBHOOK', ''),
+    },
+    'finance': {
+        'supabase_url': os.environ.get('FINANCE_SUPABASE_URL', ''),
+        'supabase_anon_key': os.environ.get('FINANCE_SUPABASE_ANON_KEY', ''),
+        'n8n_webhook': os.environ.get('FINANCE_N8N_WEBHOOK', ''),
+    },
+}
+
+ALLOWED_BASE_DOMAINS = ('deepcontext.am', 'replit.dev', 'replit.app', 'localhost')
+
+def get_industry_from_host(host_header):
+    """Extract industry from subdomain. Returns None for main domain.
+    Only routes subdomains for allowed base domains (security constraint).
+    """
+    if not host_header:
+        return None
+    host = host_header.split(':')[0].lower()
+    parts = host.split('.')
+    
+    if len(parts) >= 3:
+        subdomain = parts[0]
+        base_domain = '.'.join(parts[-2:]) if len(parts) >= 2 else ''
+        
+        is_allowed_domain = any(
+            host.endswith(allowed) or host == allowed 
+            for allowed in ALLOWED_BASE_DOMAINS
+        )
+        
+        if is_allowed_domain and subdomain in INDUSTRY_CONFIG:
+            return subdomain
+    return None
+
+def get_config_for_request(host_header):
+    """Get Supabase config based on Host header. Main domain uses default config."""
+    industry = get_industry_from_host(host_header)
+    if industry:
+        config = INDUSTRY_CONFIG[industry]
+        if config['supabase_url'] and config['supabase_anon_key']:
+            return {
+                'url': config['supabase_url'],
+                'anon_key': config['supabase_anon_key'],
+                'n8n_webhook': config['n8n_webhook'],
+                'industry': industry,
+                'is_subdomain': True
+            }
+    return {
+        'url': SUPABASE_URL,
+        'anon_key': SUPABASE_ANON_KEY,
+        'n8n_webhook': '',
+        'industry': 'default',
+        'is_subdomain': False
+    }
+
 print(f"Configuration loaded successfully")
+print(f"Industry configs available: {list(INDUSTRY_CONFIG.keys())}")
 
 MIME_TYPES = {
     '.html': 'text/html',
@@ -63,10 +122,19 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
 
-CONFIG_SCRIPT_TEMPLATE = '''<script>
+CONFIG_SCRIPT_TEMPLATE_DEFAULT = '''<script>
 window.__SUPABASE_CONFIG__ = {{
     url: "{url}",
     anonKey: "{anon_key}"
+}};
+</script>'''
+
+CONFIG_SCRIPT_TEMPLATE_INDUSTRY = '''<script>
+window.__SUPABASE_CONFIG__ = {{
+    url: "{url}",
+    anonKey: "{anon_key}",
+    n8nWebhook: "{n8n_webhook}",
+    industry: "{industry}"
 }};
 </script>'''
 
@@ -92,10 +160,21 @@ class ProductionHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def _inject_config_into_html(self, content):
         """Inject Supabase config directly into HTML to eliminate /api/config round-trip."""
-        config_script = CONFIG_SCRIPT_TEMPLATE.format(
-            url=SUPABASE_URL,
-            anon_key=SUPABASE_ANON_KEY
-        )
+        host_header = self.headers.get('Host', '')
+        config = get_config_for_request(host_header)
+        
+        if config['is_subdomain']:
+            config_script = CONFIG_SCRIPT_TEMPLATE_INDUSTRY.format(
+                url=config['url'],
+                anon_key=config['anon_key'],
+                n8n_webhook=config['n8n_webhook'],
+                industry=config['industry']
+            )
+        else:
+            config_script = CONFIG_SCRIPT_TEMPLATE_DEFAULT.format(
+                url=config['url'],
+                anon_key=config['anon_key']
+            )
         
         if b'</head>' in content:
             content = content.replace(b'</head>', config_script.encode('utf-8') + b'\n</head>')
@@ -162,12 +241,23 @@ class ProductionHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            config = {
-                'SUPABASE_URL': os.environ.get('SUPABASE_URL', ''),
-                'SUPABASE_ANON_KEY': os.environ.get('SUPABASE_ANON_KEY', '')
-            }
+            host_header = self.headers.get('Host', '')
+            config = get_config_for_request(host_header)
             
-            response_data = json.dumps(config).encode('utf-8')
+            if config['is_subdomain']:
+                response_config = {
+                    'SUPABASE_URL': config['url'],
+                    'SUPABASE_ANON_KEY': config['anon_key'],
+                    'N8N_WEBHOOK': config['n8n_webhook'],
+                    'INDUSTRY': config['industry']
+                }
+            else:
+                response_config = {
+                    'SUPABASE_URL': config['url'],
+                    'SUPABASE_ANON_KEY': config['anon_key']
+                }
+            
+            response_data = json.dumps(response_config).encode('utf-8')
             self.wfile.write(response_data)
             
         except Exception as e:
