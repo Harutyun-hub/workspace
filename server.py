@@ -6,7 +6,7 @@ import json
 import sys
 from urllib.parse import urlparse, parse_qs
 
-PORT = 5000
+PORT = int(os.environ.get('PORT', 5000))
 
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')

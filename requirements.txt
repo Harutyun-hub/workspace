@@ -1,0 +1,3 @@
+# Python dependencies for MyChatbot
+# Currently using only Python standard library modules (http.server, socketserver, json, os, sys, urllib)
+# No external dependencies required
