@@ -10,6 +10,10 @@ PORT = int(os.environ.get('PORT', 5000))
 
 # Multi-tenant configuration
 TENANT_CONFIGS = {
+    'default': {
+        'SUPABASE_URL': os.environ.get('SUPABASE_URL', ''),
+        'SUPABASE_ANON_KEY': os.environ.get('SUPABASE_ANON_KEY', ''),
+    },
     'igaming': {
         'SUPABASE_URL': os.environ.get('IGAMING_SUPABASE_URL', ''),
         'SUPABASE_ANON_KEY': os.environ.get('IGAMING_SUPABASE_ANON_KEY', ''),
@@ -21,19 +25,23 @@ TENANT_CONFIGS = {
 }
 
 def get_tenant_from_host(host):
-    """Extract tenant from hostname. Main domain and igaming subdomain both map to igaming."""
+    """Extract tenant from hostname."""
     if not host:
-        return 'igaming'  # Default to igaming
+        return 'default'
     
     # Remove port if present
     host = host.split(':')[0].lower()
+    
+    # igaming.deepcontex.am or igaming.* → igaming tenant
+    if 'igaming.' in host:
+        return 'igaming'
     
     # finance.deepcontex.am or finance.* → finance tenant
     if 'finance.' in host:
         return 'finance'
     
-    # igaming.deepcontex.am, deepcontex.am, or any other → igaming tenant (default)
-    return 'igaming'
+    # deepcontex.am or any other → default tenant
+    return 'default'
 
 # Validate that required environment variables are set
 missing_vars = []
@@ -64,7 +72,7 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             tenant = get_tenant_from_host(host)
             
             # Get configuration for this tenant
-            config = TENANT_CONFIGS.get(tenant, TENANT_CONFIGS['igaming'])
+            config = TENANT_CONFIGS.get(tenant, TENANT_CONFIGS['default'])
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
