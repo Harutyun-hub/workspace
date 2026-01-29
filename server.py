@@ -8,19 +8,48 @@ from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get('PORT', 5000))
 
-SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+# Multi-tenant configuration
+TENANT_CONFIGS = {
+    'igaming': {
+        'SUPABASE_URL': os.environ.get('IGAMING_SUPABASE_URL', ''),
+        'SUPABASE_ANON_KEY': os.environ.get('IGAMING_SUPABASE_ANON_KEY', ''),
+    },
+    'finance': {
+        'SUPABASE_URL': os.environ.get('FINANCE_SUPABASE_URL', ''),
+        'SUPABASE_ANON_KEY': os.environ.get('FINANCE_SUPABASE_ANON_KEY', ''),
+    }
+}
 
-if not SUPABASE_URL:
-    print("ERROR: Missing environment variable SUPABASE_URL", file=sys.stderr)
-    print(f"Available env vars: {list(os.environ.keys())[:10]}", file=sys.stderr)
+def get_tenant_from_host(host):
+    """Extract tenant from hostname. Main domain and igaming subdomain both map to igaming."""
+    if not host:
+        return 'igaming'  # Default to igaming
+    
+    # Remove port if present
+    host = host.split(':')[0].lower()
+    
+    # finance.deepcontex.am or finance.* → finance tenant
+    if 'finance.' in host:
+        return 'finance'
+    
+    # igaming.deepcontex.am, deepcontex.am, or any other → igaming tenant (default)
+    return 'igaming'
+
+# Validate that required environment variables are set
+missing_vars = []
+for tenant, config in TENANT_CONFIGS.items():
+    if not config['SUPABASE_URL']:
+        missing_vars.append(f'{tenant.upper()}_SUPABASE_URL')
+    if not config['SUPABASE_ANON_KEY']:
+        missing_vars.append(f'{tenant.upper()}_SUPABASE_ANON_KEY')
+
+if missing_vars:
+    print("ERROR: Missing required environment variables:", ', '.join(missing_vars), file=sys.stderr)
+    print(f"Available env vars: {list(os.environ.keys())}", file=sys.stderr)
     sys.exit(1)
 
-if not SUPABASE_ANON_KEY:
-    print("ERROR: Missing environment variable SUPABASE_ANON_KEY", file=sys.stderr)
-    sys.exit(1)
-
-print(f"✓ Configuration loaded successfully")
+print(f"✓ Multi-tenant configuration loaded successfully")
+print(f"  Tenants configured: {', '.join(TENANT_CONFIGS.keys())}")
 
 class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -30,17 +59,25 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
         if self.path == '/api/config':
+            # Get tenant from Host header
+            host = self.headers.get('Host', '')
+            tenant = get_tenant_from_host(host)
+            
+            # Get configuration for this tenant
+            config = TENANT_CONFIGS.get(tenant, TENANT_CONFIGS['igaming'])
+            
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            config = {
-                'SUPABASE_URL': os.environ.get('SUPABASE_URL', ''),
-                'SUPABASE_ANON_KEY': os.environ.get('SUPABASE_ANON_KEY', '')
+            # Add tenant info for debugging (optional, can remove in production)
+            response = {
+                **config,
+                'tenant': tenant  # Let frontend know which tenant it's using
             }
             
-            self.wfile.write(json.dumps(config).encode())
+            self.wfile.write(json.dumps(response).encode())
         else:
             super().do_GET()
 
